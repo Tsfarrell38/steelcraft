@@ -72,7 +72,6 @@ a { color: var(--soft-white); text-decoration: none; }
 ul { color: var(--muted); line-height: 2; padding-left: 20px; }
 .sectionTitle { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
 .timePill { display: inline-flex; align-items: center; gap: 7px; border: 1px solid rgba(141,61,63,.44); border-radius: 999px; padding: 8px 11px; color: #fff; background: rgba(141,61,63,.12); white-space: nowrap; }
-.crewCard { grid-column: span 1; }
 .crewList { display: grid; gap: 10px; }
 .crewRow { display: flex; justify-content: space-between; gap: 14px; align-items: center; padding: 13px; border: 1px solid rgba(255,255,255,.09); border-radius: 18px; background: rgba(255,255,255,.04); }
 .crewRow strong { display: block; color: #fff; }
@@ -91,5 +90,28 @@ ul { color: var(--muted); line-height: 2; padding-left: 20px; }
 .microcopy { font-size: 12px; margin-bottom: 0; }
 .snapshotList { display: grid; gap: 10px; margin-top: 16px; }
 .snapshotList span { padding: 13px 14px; border-radius: 16px; border: 1px solid rgba(141,61,63,.28); background: rgba(141,61,63,.1); color: var(--soft-white); }
-@media (max-width: 1020px) { .hero, .dashboard, .workspaceGrid { grid-template-columns: 1fr; } .portalGrid { grid-template-columns: repeat(2, 1fr); } .side { position: relative; height: auto; } }
-@media (max-width: 680px) { .page, .dashboard { padding: 12px; } .nav, .review, .workspaceHeader, .sectionTitle { flex-direction: column; align-items: flex-start; } .portalGrid { grid-template-columns: 1fr; } .hero { margin-top: 34px; } .heroText h1 { font-size: 46px; } .crewRow { align-items: flex-start; flex-direction: column; } .crewStatus { text-align: left; } }
+.capacityPage { max-width: 1440px; margin: 0 auto; }
+.capacityHero { border-radius: 34px; padding: 28px; display: grid; grid-template-columns: auto 1fr auto; gap: 28px; align-items: center; }
+.capacityHero h1 { margin: 8px 0; font-size: clamp(42px, 6vw, 82px); letter-spacing: -.07em; line-height: .9; }
+.capacityPath { border: 1px solid rgba(141,61,63,.45); border-radius: 999px; padding: 12px 16px; color: #fff; background: rgba(141,61,63,.12); white-space: nowrap; }
+.capacityGrid { margin-top: 18px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
+.capacityCard { border-radius: 24px; padding: 18px; min-height: 225px; }
+.capacityCardTop { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.capacityCardTop span { border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 6px 10px; color: var(--muted); font-size: 12px; }
+.capacityCard h3 { margin: 18px 0 8px; font-size: 20px; letter-spacing: -.04em; }
+.capacityCard strong { display: block; font-size: 30px; color: #fff; letter-spacing: -.06em; }
+.capacityItems { display: grid; gap: 7px; margin-top: 14px; }
+.capacityItems small { color: var(--muted); border-top: 1px solid rgba(255,255,255,.08); padding-top: 7px; }
+.capacityCard.watch .capacityCardTop span, .capacityCard.review .capacityCardTop span { color: #fff; border-color: rgba(141,61,63,.45); background: rgba(141,61,63,.15); }
+.capacitySplit { display: grid; grid-template-columns: 1.3fr .8fr; gap: 18px; margin-top: 18px; }
+.capacityTable, .capacityRules, .capacityPolicy { border-radius: 28px; padding: 24px; }
+.tenantRows { display: grid; gap: 10px; margin-top: 16px; }
+.tenantRow { display: grid; grid-template-columns: 1.2fr .7fr .8fr .7fr .9fr .4fr; gap: 12px; align-items: center; padding: 14px; border: 1px solid rgba(255,255,255,.09); border-radius: 18px; background: rgba(255,255,255,.04); color: var(--muted); }
+.tenantRow strong, .tenantRow b { color: #fff; }
+.recommendation { padding: 13px 0; border-top: 1px solid rgba(255,255,255,.1); color: var(--muted); line-height: 1.55; }
+.capacityPolicy { margin-top: 18px; }
+.pricingLadder { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 18px 0; }
+.pricingLadder span { padding: 10px 13px; border-radius: 999px; border: 1px solid rgba(141,61,63,.35); background: rgba(141,61,63,.11); color: #fff; }
+@media (max-width: 1180px) { .capacityGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .capacitySplit { grid-template-columns: 1fr; } .tenantRow { grid-template-columns: 1fr; } }
+@media (max-width: 1020px) { .hero, .dashboard, .workspaceGrid { grid-template-columns: 1fr; } .portalGrid { grid-template-columns: repeat(2, 1fr); } .side { position: relative; height: auto; } .capacityHero { grid-template-columns: 1fr; } }
+@media (max-width: 680px) { .page, .dashboard { padding: 12px; } .nav, .review, .workspaceHeader, .sectionTitle { flex-direction: column; align-items: flex-start; } .portalGrid, .capacityGrid { grid-template-columns: 1fr; } .hero { margin-top: 34px; } .heroText h1 { font-size: 46px; } .crewRow { align-items: flex-start; flex-direction: column; } .crewStatus { text-align: left; } }
