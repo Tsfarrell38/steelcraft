@@ -88,6 +88,15 @@ async function ensureSchema() {
       primary key (board_id, id)
     );
 
+    create table if not exists monday_items (
+      id text primary key,
+      board_id text not null references monday_boards(id) on delete cascade,
+      name text not null,
+      group_title text,
+      raw jsonb not null,
+      pulled_at timestamptz not null default now()
+    );
+
     create table if not exists companies (
       id bigserial primary key,
       source text default 'manual',
@@ -127,6 +136,62 @@ async function ensureSchema() {
   `);
 }
 
+async function pullMondayBoards() {
+  return mondayQuery(`
+    query SteelCraftBoards {
+      boards(limit: 100) {
+        id
+        name
+        board_kind
+        state
+        workspace { id name }
+        columns { id title type settings_str }
+      }
+    }
+  `);
+}
+
+async function syncMondayBoards() {
+  await ensureSchema();
+  const data = await pullMondayBoards();
+
+  for (const board of data.boards) {
+    await pool.query(
+      `insert into monday_boards (id, name, workspace_name, board_kind, state, raw, pulled_at)
+       values ($1, $2, $3, $4, $5, $6, now())
+       on conflict (id) do update set
+         name = excluded.name,
+         workspace_name = excluded.workspace_name,
+         board_kind = excluded.board_kind,
+         state = excluded.state,
+         raw = excluded.raw,
+         pulled_at = now()`,
+      [board.id, board.name, board.workspace?.name || null, board.board_kind, board.state, board]
+    );
+
+    for (const column of board.columns || []) {
+      await pool.query(
+        `insert into monday_columns (id, board_id, title, type, settings, raw, pulled_at)
+         values ($1, $2, $3, $4, $5, $6, now())
+         on conflict (board_id, id) do update set
+           title = excluded.title,
+           type = excluded.type,
+           settings = excluded.settings,
+           raw = excluded.raw,
+           pulled_at = now()`,
+        [column.id, board.id, column.title, column.type, safeJson(column.settings_str), column]
+      );
+    }
+  }
+
+  await pool.query(
+    `insert into portal_activity_logs (actor, action, entity_type, metadata) values ($1, $2, $3, $4)`,
+    ['system', 'monday_boards_synced', 'monday', { board_count: data.boards.length }]
+  );
+
+  return data.boards;
+}
+
 app.get('/api/health', async (req, res) => {
   const checks = {
     app: 'ok',
@@ -162,18 +227,7 @@ app.post('/api/setup/schema', async (req, res, next) => {
 
 app.get('/api/monday/boards', async (req, res, next) => {
   try {
-    const data = await mondayQuery(`
-      query SteelCraftBoards {
-        boards(limit: 100) {
-          id
-          name
-          board_kind
-          state
-          workspace { id name }
-          columns { id title type settings_str }
-        }
-      }
-    `);
+    const data = await pullMondayBoards();
     res.json({ ok: true, boards: data.boards });
   } catch (error) {
     next(error);
@@ -182,55 +236,45 @@ app.get('/api/monday/boards', async (req, res, next) => {
 
 app.post('/api/monday/sync-boards', async (req, res, next) => {
   try {
+    const boards = await syncMondayBoards();
+    res.json({ ok: true, syncedBoards: boards.length });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/monday/migration/start', async (req, res, next) => {
+  try {
+    const boards = await syncMondayBoards();
+    res.json({
+      ok: true,
+      message: 'Monday migration pass 1 complete: board and column structure synced.',
+      syncedBoards: boards.length,
+      next: 'Review /api/monday/migration/summary, then choose board IDs for Accounts, Contacts, Project Delivery, Erection Schedule, Billing & Insurance, Sales & Estimating, and Training.'
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/monday/migration/summary', async (req, res, next) => {
+  try {
     await ensureSchema();
-    const data = await mondayQuery(`
-      query SteelCraftBoards {
-        boards(limit: 100) {
-          id
-          name
-          board_kind
-          state
-          workspace { id name }
-          columns { id title type settings_str }
-        }
-      }
+    const boards = await pool.query(`
+      select
+        b.id,
+        b.name,
+        b.workspace_name,
+        b.board_kind,
+        b.state,
+        b.pulled_at,
+        count(c.id)::int as column_count
+      from monday_boards b
+      left join monday_columns c on c.board_id = b.id
+      group by b.id
+      order by lower(b.name)
     `);
-
-    for (const board of data.boards) {
-      await pool.query(
-        `insert into monday_boards (id, name, workspace_name, board_kind, state, raw, pulled_at)
-         values ($1, $2, $3, $4, $5, $6, now())
-         on conflict (id) do update set
-           name = excluded.name,
-           workspace_name = excluded.workspace_name,
-           board_kind = excluded.board_kind,
-           state = excluded.state,
-           raw = excluded.raw,
-           pulled_at = now()`,
-        [board.id, board.name, board.workspace?.name || null, board.board_kind, board.state, board]
-      );
-
-      for (const column of board.columns || []) {
-        await pool.query(
-          `insert into monday_columns (id, board_id, title, type, settings, raw, pulled_at)
-           values ($1, $2, $3, $4, $5, $6, now())
-           on conflict (board_id, id) do update set
-             title = excluded.title,
-             type = excluded.type,
-             settings = excluded.settings,
-             raw = excluded.raw,
-             pulled_at = now()`,
-          [column.id, board.id, column.title, column.type, safeJson(column.settings_str), column]
-        );
-      }
-    }
-
-    await pool.query(
-      `insert into portal_activity_logs (actor, action, entity_type, metadata) values ($1, $2, $3, $4)`,
-      ['system', 'monday_boards_synced', 'monday', { board_count: data.boards.length }]
-    );
-
-    res.json({ ok: true, syncedBoards: data.boards.length });
+    res.json({ ok: true, boards: boards.rows });
   } catch (error) {
     next(error);
   }
