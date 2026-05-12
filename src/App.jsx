@@ -26,8 +26,8 @@ const projectRows = [
 ];
 
 const employeeRows = [
-  { name: 'Field Crew Assignments', detail: 'Daily work, schedule, jobsite notes, and punch items', status: 'Build lane' },
-  { name: 'Time Clock / Daily Logs', detail: 'Clock-in, job costing notes, field uploads, and approval queue', status: 'Planned' },
+  { name: 'Today\'s Assigned Work', detail: 'Project tasks, schedule, jobsite notes, and punch items', status: 'Live view' },
+  { name: 'Daily Logs', detail: 'Work notes, photos, issues, materials, and supervisor review', status: 'Build lane' },
   { name: 'Employee Documents', detail: 'Assigned SOPs, safety docs, and required acknowledgements', status: 'Planned' }
 ];
 
@@ -109,9 +109,25 @@ function ProjectPortal() {
   </section>;
 }
 
+function TimeClockPanel() {
+  const [clockedIn, setClockedIn] = useState(false);
+  const [selectedProject, setSelectedProject] = useState('Shop / General');
+  const [selectedTask, setSelectedTask] = useState('Fabrication');
+
+  return <article className="feature panel large timeClockCard"><p className="eyebrow"><Clock3 size={14}/> One tap time clock</p><h2>{clockedIn ? 'You are clocked in' : 'Clock in to start work'}</h2><p>Make this the first thing employees see. No scraping QuickBooks Time, no hunting through another app. The portal captures the punch, project, task, and notes cleanly.</p>
+    <div className="clockFace"><span>{clockedIn ? 'IN' : 'OFF'}</span><small>{clockedIn ? 'ACTIVE SHIFT' : 'READY'}</small></div>
+    <div className="dataRows">
+      <label className="dataRow"><div><strong>Project / cost code</strong><span>Where should this time be charged?</span></div><select value={selectedProject} onChange={(event) => setSelectedProject(event.target.value)}><option>Shop / General</option><option>Marion Industrial Park</option><option>Ocala Commerce Center</option><option>Sun State Builders</option></select></label>
+      <label className="dataRow"><div><strong>Work type</strong><span>Simple task category for job costing</span></div><select value={selectedTask} onChange={(event) => setSelectedTask(event.target.value)}><option>Fabrication</option><option>Engineering</option><option>Delivery</option><option>Erection</option><option>Punch / Service</option><option>Admin / Office</option></select></label>
+    </div>
+    <div className="clockActions"><button onClick={() => setClockedIn(!clockedIn)}>{clockedIn ? 'Clock Out' : 'Clock In'}</button><button className="ghost">Start Break</button><button className="ghost">Add Note</button></div>
+    <p className="microcopy">Next build step: save time punches to PostgreSQL, route supervisor approvals, and export payroll/job-cost records.</p>
+  </article>;
+}
+
 function EmployeePortal() {
-  return <section className="workspace"><header className="workspaceHeader panel"><div><p className="eyebrow">Employee operations</p><h1>Employee Portal</h1><p>The employee portal gives field and office staff their assigned work, project tasks, daily logs, uploads, schedule visibility, and required acknowledgements.</p></div><div className="liveBadge"><HardHat size={22}/> Internal access</div></header>
-    <div className="workspaceGrid"><article className="feature panel large"><p className="eyebrow"><CalendarDays size={14}/> Daily work center</p><h2>Employee dashboard</h2><p>Employees should land here and immediately see today’s assigned projects, jobsite notes, time/log actions, uploaded field photos, and open punch items.</p><div className="miniList strong"><span>Assigned projects</span><span>Daily logs</span><span>Field uploads</span><span>Punch items</span><span>Safety acknowledgements</span></div></article><RecordList title="Employee portal sections" rows={employeeRows} /></div>
+  return <section className="workspace"><header className="workspaceHeader panel"><div><p className="eyebrow">Employee operations</p><h1>Employee Portal</h1><p>The employee portal gives field and office staff their time clock, assigned work, project tasks, daily logs, uploads, schedule visibility, and required acknowledgements.</p></div><div className="liveBadge"><HardHat size={22}/> Internal access</div></header>
+    <div className="workspaceGrid"><TimeClockPanel /><article className="feature panel"><p className="eyebrow"><CalendarDays size={14}/> Daily work center</p><h2>Employee dashboard</h2><p>Employees should land here and immediately clock in, choose the project/cost code, see today’s assigned work, and add jobsite notes without fighting another system.</p><div className="miniList strong"><span>Time clock</span><span>Assigned projects</span><span>Daily logs</span><span>Field uploads</span><span>Punch items</span></div></article><RecordList title="Employee portal sections" rows={employeeRows} /></div>
   </section>;
 }
 
