@@ -1,13 +1,17 @@
 import express from 'express';
 import { Pool } from 'pg';
 import { S3Client, ListBucketsCommand } from '@aws-sdk/client-s3';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 8080;
 const mondayApiUrl = process.env.MONDAY_API_URL || 'https://api.monday.com/v2';
 
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static('dist'));
+app.use(express.static(path.join(__dirname, 'dist')));
 
 const pool = process.env.DATABASE_URL
   ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
@@ -253,7 +257,7 @@ app.get('/api/spaces/status', async (req, res, next) => {
 });
 
 app.get('*', (req, res) => {
-  res.sendFile(new URL('./dist/index.html', import.meta.url).pathname);
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 app.use((error, req, res, next) => {
