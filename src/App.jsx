@@ -1,16 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ArrowRight, BadgeCheck, Building2, CalendarDays, CheckCircle2, ClipboardList, Clock3, Database, FileText, GraduationCap, Handshake, HardHat, HeartPulse, LayoutDashboard, Megaphone, RefreshCw, ShieldCheck, UserCog, UsersRound, Workflow } from 'lucide-react';
 import './styles.css';
 
 const modules = [
   { id: 'admin', title: 'Admin', icon: LayoutDashboard },
+  { id: 'sales', title: 'Sales & Estimating', icon: Megaphone },
   { id: 'projects', title: 'Project Portal', icon: ClipboardList },
   { id: 'employee', title: 'Employee Portal', icon: HardHat },
   { id: 'hr', title: 'HR Portal', icon: UserCog },
   { id: 'accounts', title: 'Accounts', icon: Building2 },
   { id: 'contacts', title: 'Contacts', icon: UsersRound },
-  { id: 'sales', title: 'Sales & Estimating', icon: Megaphone },
   { id: 'erection', title: 'Erection Schedule', icon: Workflow },
   { id: 'billing', title: 'Billing & Insurance', icon: FileText },
   { id: 'vendors', title: 'Vendors / POs', icon: Handshake }
@@ -18,11 +18,22 @@ const modules = [
 
 const workflowStages = ['New Lead', 'Design', 'Quote Sent', 'Client Review', 'Revisions', 'PO Signed / Contracted', 'Engineering', 'Production', 'Delivery', 'Erection', 'Close-Out'];
 const projectStages = ['Contracted', 'Engineering', 'Material', 'Fabrication', 'Delivery', 'Erection', 'Punch', 'Closeout'];
+const estimateSteps = ['Project Info', 'Scope Builder', 'Cost Build', 'Margin Review', 'Quote Generator', 'Checklist', 'Convert to Project'];
 
 const projectRows = [
-  { name: 'Marion Industrial Park', detail: 'Engineering review • PEMB package pending', status: 'Engineering' },
-  { name: 'Ocala Commerce Center', detail: 'Customer quote approved • billing setup next', status: 'Contracted' },
-  { name: 'Sun State Builders', detail: 'Vendor packet needed • delivery window open', status: 'Material' }
+  { name: 'Marion Industrial Park', detail: 'Engineering review - PEMB package pending', status: 'Engineering' },
+  { name: 'Ocala Commerce Center', detail: 'Customer quote approved - billing setup next', status: 'Contracted' },
+  { name: 'Sun State Builders', detail: 'Vendor packet needed - delivery window open', status: 'Material' }
+];
+
+const estimateRows = [
+  { name: 'Estimate Intake', detail: 'Project info, customer, location, tax rate, square footage, estimator', status: 'estimates' },
+  { name: 'Cost Builder', detail: 'Material, labor, markup, tax, alternates, internal notes', status: 'estimate_cost_lines' },
+  { name: 'Quote Generator', detail: 'F&E and EO quote versions without showing spreadsheet tabs', status: 'quotation_versions' },
+  { name: 'Deposit Schedule', detail: 'Contract, materials, labor, final draw, custom payment terms', status: 'estimate_deposit_schedule' },
+  { name: 'Project Checklist', detail: 'Release status, delivery dates, quantities, and handoff items', status: 'project_checklist_items' },
+  { name: 'SOV / Billing', detail: 'Material and labor SOV lines, invoices, draw billing support', status: 'schedule_of_values' },
+  { name: 'Change Orders', detail: 'CO sent, returned, authorized amount, billing/draw status', status: 'change_orders' }
 ];
 
 const employeeRows = [
@@ -52,6 +63,11 @@ function BrandMark() {
 function JsonBox({ value }) {
   if (!value) return <p className="microcopy">No response yet.</p>;
   return <pre className="apiBox">{JSON.stringify(value, null, 2)}</pre>;
+}
+
+function StatusCard({ label, value, icon: Icon }) {
+  const clean = String(value).replace('not_configured', 'not set');
+  return <article className="statCard panel"><div className="icon"><Icon size={22}/></div><strong>{clean}</strong><span>{label}</span><small>{clean === 'connected' || clean === 'configured' ? 'Ready' : 'Needs attention'}</small></article>;
 }
 
 function AdminPortal() {
@@ -91,15 +107,18 @@ function AdminPortal() {
     </div>
     <div className="workspaceGrid">
       <article className="feature panel large"><p className="eyebrow"><Database size={14}/> One-day migration controls</p><h2>Monday migration actions</h2><p>Start by initializing the database, then sync Monday board structure. Once Seth provides a token with board access, the board list will populate here.</p><div className="buttonRow"><button onClick={() => callApi('Health Check', '/api/health')} disabled={!!loading}>Health check</button><button onClick={() => callApi('Initialize Schema', '/api/setup/schema', { method: 'POST' })} disabled={!!loading}>Initialize database</button><button onClick={() => callApi('Sync Monday Boards', '/api/monday/sync-boards', { method: 'POST' })} disabled={!!loading}>Sync Monday boards</button><button onClick={() => callApi('Load Summary', '/api/monday/migration/summary')} disabled={!!loading}>Load summary</button></div>{loading && <p className="microcopy">Running: {loading}...</p>}<JsonBox value={lastAction?.data} /></article>
-      <article className="feature panel"><p className="eyebrow"><ClipboardList size={14}/> Synced Monday boards</p><h2>Board summary</h2>{summary?.boards?.length ? <div className="dataRows">{summary.boards.map((board) => <div className="dataRow" key={board.id}><div><strong>{board.name}</strong><span>{board.workspace_name || 'No workspace'} • {board.id}</span></div><b>{board.column_count} columns</b><small>{board.state}</small></div>)}</div> : <p>No boards synced yet. The current Monday token may not have access to Steel Craft's boards.</p>}</article>
+      <article className="feature panel"><p className="eyebrow"><ClipboardList size={14}/> Synced Monday boards</p><h2>Board summary</h2>{summary?.boards?.length ? <div className="dataRows">{summary.boards.map((board) => <div className="dataRow" key={board.id}><div><strong>{board.name}</strong><span>{board.workspace_name || 'No workspace'} - {board.id}</span></div><b>{board.column_count} columns</b><small>{board.state}</small></div>)}</div> : <p>No boards synced yet. The current Monday token may not have access to Steel Craft's boards.</p>}</article>
     </div>
     <article className="feature panel fullSpan"><p className="eyebrow"><Workflow size={14}/> Target Monday workflow map</p><h2>Migration targets</h2><div className="stageRail">{workflowStages.map((stage, index) => <div className="stage" key={stage}><b>{String(index + 1).padStart(2, '0')}</b><span>{stage}</span></div>)}</div></article>
   </section>;
 }
 
-function StatusCard({ label, value, icon: Icon }) {
-  const clean = String(value).replace('not_configured', 'not set');
-  return <article className="statCard panel"><div className="icon"><Icon size={22}/></div><strong>{clean}</strong><span>{label}</span><small>{clean === 'connected' || clean === 'configured' ? 'Ready' : 'Needs attention'}</small></article>;
+function SalesPortal() {
+  return <section className="workspace"><header className="workspaceHeader panel"><div><p className="eyebrow">Sales and estimating</p><h1>Sales & Estimating</h1><p>This turns the estimate workbook logic into a clean platform flow: estimate intake, cost build, margin review, quote generation, checklist, billing preview, and change orders.</p></div><div className="liveBadge"><Megaphone size={22}/> Estimating engine</div></header>
+    <div className="statsGrid"><StatusCard label="Estimate Tables" value="live" icon={Database} /><StatusCard label="Quote Versions" value="ready" icon={FileText} /><StatusCard label="SOV / Billing" value="ready" icon={ClipboardList} /><StatusCard label="Change Orders" value="ready" icon={Workflow} /></div>
+    <div className="workspaceGrid"><article className="feature panel large"><p className="eyebrow"><Workflow size={14}/> Platform flow</p><h2>Estimate to project path</h2><p>The workbook stays behind the scenes as database logic. The estimator sees a guided platform experience instead of tabs, formulas, and duplicate sheets.</p><div className="stageRail">{estimateSteps.map((stage, index) => <div className="stage" key={stage}><b>{String(index + 1).padStart(2, '0')}</b><span>{stage}</span></div>)}</div><div className="buttonRow"><button>New Estimate</button><button>Build Quote</button><button>Margin Review</button><button>Convert to Project</button></div></article><RecordList title="Workbook logic mapped to platform" rows={estimateRows} /></div>
+    <article className="feature panel fullSpan"><p className="eyebrow"><FileText size={14}/> Quote builder preview</p><h2>What the estimator should work through</h2><div className="dataRows"><div className="dataRow"><div><strong>1. Project and customer info</strong><span>Job number, name, city/zip, customer, contact, estimator, project address, tax rate.</span></div><b>Estimate intake</b></div><div className="dataRow"><div><strong>2. Scope and cost build</strong><span>Material lines, labor lines, markups, tax, deposits, alternates, and internal-only notes.</span></div><b>Cost builder</b></div><div className="dataRow"><div><strong>3. Quote output</strong><span>F&E quotation, EO quotation, customer-facing line items, exclusions, payment terms, and approval status.</span></div><b>Quote generator</b></div><div className="dataRow"><div><strong>4. Project handoff</strong><span>Checklist, SOV, invoice prep, change order center, and conversion into Project Portal.</span></div><b>Handoff</b></div></div></article>
+  </section>;
 }
 
 function ProjectPortal() {
@@ -146,6 +165,7 @@ function ModulePage({ active }) {
   const current = modules.find((m) => m.id === active) || modules[0];
   const Icon = current.icon;
   if (active === 'admin') return <AdminPortal />;
+  if (active === 'sales') return <SalesPortal />;
   if (active === 'projects') return <ProjectPortal />;
   if (active === 'employee') return <EmployeePortal />;
   if (active === 'hr') return <HrPortal />;
@@ -153,7 +173,7 @@ function ModulePage({ active }) {
 }
 
 function Landing({ enter }) {
-  return <main className="page landing"><header className="nav panel"><BrandMark /><nav><a href="#modules">Modules</a><button onClick={() => enter('admin')}>Open Admin</button></nav></header><section className="hero"><div className="heroText"><p className="eyebrow"><CheckCircle2 size={16}/> Steel Craft migration lane</p><h1>Monday migration and portal foundation.</h1><p>The backend, database, and Monday connection are in place. The admin panel controls setup, and the Project, Employee, and HR portals are now framed for the working build.</p><div className="actions"><button onClick={() => enter('admin')}>Open admin panel <ArrowRight size={18}/></button></div><div className="chips"><span><Database size={16}/> PostgreSQL connected</span><span><RefreshCw size={16}/> Monday ready for Seth token</span><span><HardHat size={16}/> Employee + HR portals</span></div></div><div className="heroVisual panel"><div className="steelPlate"><div className="redRail"/><h2>SCB</h2><p>Monday to portal migration</p></div></div></section><section id="modules" className="portalGrid">{modules.map((module) => { const Icon = module.icon; return <article className="portalCard panel" key={module.id}><div className="icon"><Icon size={24}/></div><p className="eyebrow">Module</p><h3>{module.title}</h3><p>Mapped from the existing Steel Craft Monday workspace.</p><button className="inlineAction" onClick={() => enter(module.id)}>Open <ArrowRight size={15}/></button></article>; })}</section></main>;
+  return <main className="page landing"><header className="nav panel"><BrandMark /><nav><a href="#modules">Modules</a><button onClick={() => enter('admin')}>Open Admin</button></nav></header><section className="hero"><div className="heroText"><p className="eyebrow"><CheckCircle2 size={16}/> Steel Craft migration lane</p><h1>Monday migration and portal foundation.</h1><p>The backend, database, and Monday connection are in place. The admin panel controls setup, and the Sales, Project, Employee, and HR portals are now framed for the working build.</p><div className="actions"><button onClick={() => enter('admin')}>Open admin panel <ArrowRight size={18}/></button></div><div className="chips"><span><Database size={16}/> PostgreSQL connected</span><span><RefreshCw size={16}/> Monday ready for Seth token</span><span><HardHat size={16}/> Employee + HR portals</span></div></div><div className="heroVisual panel"><div className="steelPlate"><div className="redRail"/><h2>SCB</h2><p>Monday to portal migration</p></div></div></section><section id="modules" className="portalGrid">{modules.map((module) => { const Icon = module.icon; return <article className="portalCard panel" key={module.id}><div className="icon"><Icon size={24}/></div><p className="eyebrow">Module</p><h3>{module.title}</h3><p>Mapped from the existing Steel Craft Monday workspace.</p><button className="inlineAction" onClick={() => enter(module.id)}>Open <ArrowRight size={15}/></button></article>; })}</section></main>;
 }
 
 function Shell({ active, setActive, back }) {
