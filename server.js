@@ -13,8 +13,16 @@ const mondayApiUrl = process.env.MONDAY_API_URL || 'https://api.monday.com/v2';
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'dist')));
 
-const pool = process.env.DATABASE_URL
-  ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
+function getDatabaseUrl() {
+  if (!process.env.DATABASE_URL) return null;
+  const url = new URL(process.env.DATABASE_URL);
+  url.searchParams.delete('sslmode');
+  return url.toString();
+}
+
+const databaseUrl = getDatabaseUrl();
+const pool = databaseUrl
+  ? new Pool({ connectionString: databaseUrl, ssl: { rejectUnauthorized: false } })
   : null;
 
 function requireDatabase() {
