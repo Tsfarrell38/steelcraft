@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 
@@ -57,14 +57,34 @@ const accountingModules = [
 ];
 
 const brandDefaults = {
-  tenantName: 'New Customer',
-  platformName: 'White Label Operations Portal',
+  tenantName: 'Steel Craft',
+  platformName: 'Operations Portal',
+  logoText: 'Steel Craft',
+  logoSubtext: 'Operations Portal',
+  heroTitle: 'Operations Portal',
+  heroKicker: 'Proudly American Made',
+  heroCopy: 'A branded operations gateway for admin, employee, accounting, vendor, and customer access.',
+  utilityLinks: 'Literature, Contact, Portal Login',
+  navLinks: 'Products, Why Steel, Resources, Locations, Support',
   primaryColor: '#172033',
-  accentColor: '#bb2e2e',
+  accentColor: '#b22b2f',
+  softAccentColor: '#f6ecec',
   loadSteelCraftData: false,
   loadMondayBoards: false,
   loadExcelWorkbook: false
 };
+
+function loadBrand() {
+  try {
+    return { ...brandDefaults, ...(JSON.parse(localStorage.getItem('steelcraft_brand_controls_v1')) || {}) };
+  } catch {
+    return brandDefaults;
+  }
+}
+
+function saveBrand(next) {
+  localStorage.setItem('steelcraft_brand_controls_v1', JSON.stringify(next));
+}
 
 function Badge({ children }) {
   return <span className="badge">{children}</span>;
@@ -72,6 +92,26 @@ function Badge({ children }) {
 
 function Card({ children, className = '' }) {
   return <section className={`card ${className}`}>{children}</section>;
+}
+
+function BrandHeader({ brand, compact = false }) {
+  const utilityLinks = String(brand.utilityLinks || '').split(',').map((item) => item.trim()).filter(Boolean);
+  const navLinks = String(brand.navLinks || '').split(',').map((item) => item.trim()).filter(Boolean);
+  return (
+    <header className={`brand-header ${compact ? 'compact' : ''}`}>
+      <div className="utility-bar">
+        <div>{utilityLinks.map((link) => <span key={link}>{link}</span>)}</div>
+        <strong>{brand.heroKicker}</strong>
+      </div>
+      <div className="brand-nav">
+        <div className="brand-lockup">
+          <div className="brand-mark">SC</div>
+          <div><strong>{brand.logoText}</strong><small>{brand.logoSubtext}</small></div>
+        </div>
+        <nav>{navLinks.map((link) => <span key={link}>{link}</span>)}</nav>
+      </div>
+    </header>
+  );
 }
 
 function PortalCard({ portal, activePortal, setActivePortal }) {
@@ -87,19 +127,26 @@ function PortalCard({ portal, activePortal, setActivePortal }) {
   );
 }
 
-function AuthLanding({ onEnter }) {
+function AuthLanding({ onEnter, brand }) {
   return (
-    <main className="auth-shell">
-      <section className="auth-card">
-        <Badge>Authentication page</Badge>
-        <h1>Steel Craft Operations Portal</h1>
-        <p>
-          This is the outside login gateway. After authentication, users are routed into one of five portals:
-          Admin, Employee, Accounting, Vendor, or Customer.
-        </p>
-        <div className="portal-grid">
-          {topPortals.map((portal) => <PortalCard key={portal.id} portal={portal} activePortal="" setActivePortal={() => onEnter(portal.id)} />)}
+    <main className="site-shell" style={brandStyle(brand)}>
+      <BrandHeader brand={brand} />
+      <section className="site-hero">
+        <div className="hero-copy">
+          <Badge>Authentication page</Badge>
+          <p className="kicker">{brand.heroKicker}</p>
+          <h1>{brand.logoText} {brand.heroTitle}</h1>
+          <p>{brand.heroCopy}</p>
+          <button className="primary" onClick={() => onEnter('employee')}>Enter portal preview</button>
         </div>
+        <aside className="hero-panel steel-panel">
+          <span>Role-based routing</span>
+          <strong>Five portals</strong>
+          <small>Admin · Employee · Accounting · Vendor · Customer</small>
+        </aside>
+      </section>
+      <section className="portal-grid">
+        {topPortals.map((portal) => <PortalCard key={portal.id} portal={portal} activePortal="" setActivePortal={() => onEnter(portal.id)} />)}
       </section>
     </main>
   );
@@ -181,42 +228,76 @@ function ExternalPortal({ type }) {
 }
 
 function BrandControls() {
-  const [brand, setBrand] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('steelcraft_brand_controls_v1')) || brandDefaults; } catch { return brandDefaults; }
-  });
+  const [brand, setBrand] = useState(loadBrand);
   function update(field, value) {
     const next = { ...brand, [field]: value };
     setBrand(next);
-    localStorage.setItem('steelcraft_brand_controls_v1', JSON.stringify(next));
+    saveBrand(next);
+  }
+  function reset() {
+    setBrand(brandDefaults);
+    saveBrand(brandDefaults);
   }
   return (
-    <main className="app-shell">
-      <header className="hero">
-        <div><Badge>Hidden /brand controls</Badge><h1>White-label brand controls</h1><p>Hidden operator setup for clean customer templates. This is not linked from customer-facing navigation.</p></div>
+    <main className="site-shell" style={brandStyle(brand)}>
+      <BrandHeader brand={brand} compact />
+      <section className="site-hero brand-hero">
+        <div className="hero-copy"><Badge>Hidden /brand controls</Badge><h1>White-label brand controls</h1><p>Control the customer-facing look without exposing these controls in normal portal navigation.</p></div>
         <aside className="hero-panel"><span>Tenant preview</span><strong>{brand.tenantName}</strong><small>{brand.platformName}</small></aside>
-      </header>
+      </section>
       <div className="two-column">
-        <Card><h2>Main controls</h2><label>Tenant name<input value={brand.tenantName} onChange={(e) => update('tenantName', e.target.value)} /></label><label>Platform name<input value={brand.platformName} onChange={(e) => update('platformName', e.target.value)} /></label><label>Primary color<input type="color" value={brand.primaryColor} onChange={(e) => update('primaryColor', e.target.value)} /></label><label>Accent color<input type="color" value={brand.accentColor} onChange={(e) => update('accentColor', e.target.value)} /></label></Card>
-        <Card><h2>Clean new-customer rules</h2><label><input type="checkbox" checked={brand.loadSteelCraftData} onChange={(e) => update('loadSteelCraftData', e.target.checked)} /> Load Steel Craft records</label><label><input type="checkbox" checked={brand.loadMondayBoards} onChange={(e) => update('loadMondayBoards', e.target.checked)} /> Load Steel Craft Monday boards</label><label><input type="checkbox" checked={brand.loadExcelWorkbook} onChange={(e) => update('loadExcelWorkbook', e.target.checked)} /> Load Steel Craft Excel workbook data</label><div className="notice">Default for new customers: five-portal structure only. No Steel Craft data.</div></Card>
+        <Card>
+          <h2>Main brand controls</h2>
+          <label>Tenant name<input value={brand.tenantName} onChange={(e) => update('tenantName', e.target.value)} /></label>
+          <label>Platform name<input value={brand.platformName} onChange={(e) => update('platformName', e.target.value)} /></label>
+          <label>Logo text<input value={brand.logoText} onChange={(e) => update('logoText', e.target.value)} /></label>
+          <label>Logo subtext<input value={brand.logoSubtext} onChange={(e) => update('logoSubtext', e.target.value)} /></label>
+          <label>Hero title<input value={brand.heroTitle} onChange={(e) => update('heroTitle', e.target.value)} /></label>
+          <label>Hero kicker<input value={brand.heroKicker} onChange={(e) => update('heroKicker', e.target.value)} /></label>
+          <label>Hero copy<input value={brand.heroCopy} onChange={(e) => update('heroCopy', e.target.value)} /></label>
+        </Card>
+        <Card>
+          <h2>Theme and data rules</h2>
+          <label>Primary color<input type="color" value={brand.primaryColor} onChange={(e) => update('primaryColor', e.target.value)} /></label>
+          <label>Accent color<input type="color" value={brand.accentColor} onChange={(e) => update('accentColor', e.target.value)} /></label>
+          <label>Soft accent<input type="color" value={brand.softAccentColor} onChange={(e) => update('softAccentColor', e.target.value)} /></label>
+          <label>Utility links<input value={brand.utilityLinks} onChange={(e) => update('utilityLinks', e.target.value)} /></label>
+          <label>Navigation links<input value={brand.navLinks} onChange={(e) => update('navLinks', e.target.value)} /></label>
+          <label className="check-row"><input type="checkbox" checked={brand.loadSteelCraftData} onChange={(e) => update('loadSteelCraftData', e.target.checked)} /> Load Steel Craft records</label>
+          <label className="check-row"><input type="checkbox" checked={brand.loadMondayBoards} onChange={(e) => update('loadMondayBoards', e.target.checked)} /> Load Steel Craft Monday boards</label>
+          <label className="check-row"><input type="checkbox" checked={brand.loadExcelWorkbook} onChange={(e) => update('loadExcelWorkbook', e.target.checked)} /> Load Steel Craft Excel workbook data</label>
+          <div className="notice">Default for new customers: five-portal structure only. No Steel Craft data.</div>
+          <button className="primary" onClick={reset}>Reset to Steel Craft-style defaults</button>
+        </Card>
       </div>
     </main>
   );
+}
+
+function brandStyle(brand) {
+  return {
+    '--brand-primary': brand.primaryColor,
+    '--brand-accent': brand.accentColor,
+    '--brand-soft': brand.softAccentColor
+  };
 }
 
 function App() {
   const isBrandRoute = window.location.pathname.replace(/\/$/, '') === '/brand';
   const [authenticated, setAuthenticated] = useState(false);
   const [activePortal, setActivePortal] = useState('employee');
+  const brand = useMemo(loadBrand, []);
 
   if (isBrandRoute) return <BrandControls />;
-  if (!authenticated) return <AuthLanding onEnter={(portalId) => { setActivePortal(portalId); setAuthenticated(true); }} />;
+  if (!authenticated) return <AuthLanding brand={brand} onEnter={(portalId) => { setActivePortal(portalId); setAuthenticated(true); }} />;
 
   return (
-    <main className="app-shell">
-      <header className="hero">
-        <div><Badge>Five-portal architecture</Badge><h1>Steel Craft Portal Gateway</h1><p>Authenticated entry into five portals: Admin, Employee, Accounting, Vendor, and Customer.</p></div>
-        <aside className="hero-panel"><span>Signed in view</span><strong>{topPortals.find((portal) => portal.id === activePortal)?.title}</strong><small>Architecture corrected on staging branch</small></aside>
-      </header>
+    <main className="site-shell" style={brandStyle(brand)}>
+      <BrandHeader brand={brand} />
+      <section className="site-hero dashboard-hero">
+        <div className="hero-copy"><Badge>Five-portal architecture</Badge><h1>{brand.logoText} Portal Gateway</h1><p>Authenticated entry into five portals: Admin, Employee, Accounting, Vendor, and Customer.</p></div>
+        <aside className="hero-panel"><span>Signed in view</span><strong>{topPortals.find((portal) => portal.id === activePortal)?.title}</strong><small>Brand-driven staging shell</small></aside>
+      </section>
       <PortalTabs activePortal={activePortal} setActivePortal={setActivePortal} />
       {activePortal === 'admin' && <AdminPortal />}
       {activePortal === 'employee' && <EmployeePortal />}
