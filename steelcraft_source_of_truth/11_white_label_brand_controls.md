@@ -13,6 +13,7 @@ This route is intentionally hidden from the normal customer-facing application. 
 - Authentication page
 - Admin Portal
 - Employee Portal
+- Accounting Portal
 - Vendor Portal
 - Customer Portal
 
@@ -24,15 +25,15 @@ When opening the system for a new customer, do not load Steel Craft operating da
 
 A new customer should receive:
 
-- Four-portal app structure
+- Five-portal app structure
 - Admin Portal shell
 - Employee Portal shell
+- Accounting Portal shell
 - Vendor Portal shell
 - Customer Portal shell
 - Employee module structure
-- Planning Portal structure
-- HR Portal structure
-- Empty/clean tenant records
+- Accounting module structure
+- Clean tenant records
 - Tenant-specific branding
 
 A new customer should not receive:
@@ -79,17 +80,18 @@ templateMode = clean-structure
 
 ## Architecture reminder
 
-Top-level portals stay fixed:
+Top-level portals are now:
 
 1. Admin Portal
 2. Employee Portal
-3. Vendor Portal
-4. Customer Portal
+3. Accounting Portal
+4. Vendor Portal
+5. Customer Portal
 
 Billing, Insurance, and POs belong inside:
 
 ```text
-Employee Portal > Planning Portal
+Accounting Portal
 ```
 
 Vendor and Customer portals stay outside the Employee Portal.

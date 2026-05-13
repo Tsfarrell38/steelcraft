@@ -2,23 +2,25 @@
 
 ## Top-level architecture
 
-The app has exactly four top-level portals after the outside authentication page:
+The app now has exactly five top-level portals after the outside authentication page:
 
 1. Admin Portal
 2. Employee Portal
-3. Vendor Portal
-4. Customer Portal
+3. Accounting Portal
+4. Vendor Portal
+5. Customer Portal
 
-Do not keep adding standalone portals outside this structure. New internal operating modules belong inside the Employee Portal unless they are specifically for outside vendors or outside customers.
+Do not keep adding standalone portals outside this structure without an explicit architecture decision.
 
 ## Outside entry point
 
 The first page is an authentication/login gateway.
 
-After authentication, role-based routing sends the user to one of four portals:
+After authentication, role-based routing sends the user to one of five portals:
 
 - Admin users -> Admin Portal
 - Internal Steel Craft employees -> Employee Portal
+- Accounting/finance users -> Accounting Portal
 - Vendors -> Vendor Portal
 - Customers -> Customer Portal
 
@@ -86,18 +88,16 @@ Includes:
 
 Planning Portal lives inside the Employee Portal.
 
-Planning includes:
+Planning includes internal job readiness and execution planning:
 
-- Billing
-- Insurance
-- Purchase Orders / POs
 - Job readiness
 - Internal planning schedule
-- SOV / draw / invoice visibility
-- COI and insurance tracking
-- Vendor assignment to POs
+- Project handoffs
+- Internal readiness notes
+- Schedule blockers
+- Production/field readiness checks
 
-POs belong in the Employee Portal under Planning. Vendor-facing PO visibility can be shown in the external Vendor Portal, but PO creation, internal approval, and PO management belong inside Employee > Planning.
+Financial control has moved out of Employee > Planning and into the Accounting Portal.
 
 ### HR Portal
 
@@ -121,13 +121,15 @@ No time clock. All employees are salary.
 
 ### Accounts
 
-Includes:
+Includes account records and relationship data:
 
 - Customer accounts
 - Vendor accounts
 - Contractor accounts
 - Account history
 - Account ownership
+
+Financial transactions live in the Accounting Portal.
 
 ### Contacts
 
@@ -150,6 +152,37 @@ Includes:
 - Schedule conflicts
 - Erection milestones
 
+## Accounting Portal
+
+Purpose: full financial control center.
+
+Accounting is a top-level portal, separate from Employee, Vendor, and Customer.
+
+Accounting owns:
+
+- Billing
+- Insurance
+- Purchase Orders / POs
+- Accounts receivable
+- Accounts payable
+- Customer invoices
+- Vendor bills
+- Subcontractor bills
+- Payments received
+- Payments due
+- Schedule of Values / SOV
+- Draws
+- Deposits
+- Change order billing
+- Project financial health
+- Financial reports and exports
+
+PO creation, internal PO approval, and PO management belong inside the Accounting Portal.
+
+Vendor-facing PO visibility can still be shown in the external Vendor Portal, but vendors do not control internal PO management.
+
+Customer-facing billing visibility can still be shown in the external Customer Portal, but customers do not access the internal Accounting Portal.
+
 ## Vendor Portal
 
 Purpose: outside vendor access.
@@ -165,7 +198,7 @@ Vendors should see only:
 - Upload slots
 - Status notes
 
-Vendors should not see internal employee modules.
+Vendors should not see internal employee modules or the internal Accounting Portal.
 
 ## Customer Portal
 
@@ -183,7 +216,7 @@ Customers should see only approved/assigned customer-facing items:
 - Upload/request area
 - Approvals
 
-Customers should not see internal employee modules.
+Customers should not see internal employee modules or the internal Accounting Portal.
 
 ## Architecture rule
 
@@ -191,7 +224,8 @@ When adding a new feature, first decide where it belongs:
 
 - System management -> Admin Portal
 - Internal operations -> Employee Portal
+- Financial control -> Accounting Portal
 - Outside vendor workflows -> Vendor Portal
 - Outside customer workflows -> Customer Portal
 
-Do not create a fifth top-level portal without an explicit architecture decision.
+Do not create a sixth top-level portal without an explicit architecture decision.
