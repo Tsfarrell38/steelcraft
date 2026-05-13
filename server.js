@@ -4,6 +4,7 @@ import { S3Client, ListBucketsCommand } from '@aws-sdk/client-s3';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ensureEstimatingSchema } from './server/estimatingSchema.js';
+import { ensureHrSchema } from './server/hrSchema.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -136,6 +137,7 @@ async function ensureSchema() {
     );
   `);
   await ensureEstimatingSchema(db);
+  await ensureHrSchema(db);
 }
 
 async function pullMondayBoards() {
@@ -219,9 +221,9 @@ app.post('/api/setup/schema', async (req, res, next) => {
     await ensureSchema();
     await pool.query(
       `insert into portal_activity_logs (actor, action, entity_type, metadata) values ($1, $2, $3, $4)`,
-      ['system', 'schema_initialized', 'database', { lane: '01-admin-foundation', estimating: true }]
+      ['system', 'schema_initialized', 'database', { lane: '01-admin-foundation', estimating: true, hr: true }]
     );
-    res.json({ ok: true, message: 'Steel Craft portal schema initialized, including estimating workbook tables.' });
+    res.json({ ok: true, message: 'Steel Craft portal schema initialized, including estimating and HR portal tables.' });
   } catch (error) {
     next(error);
   }
@@ -239,6 +241,28 @@ app.get('/api/estimating/schema/status', async (req, res, next) => {
           'estimates', 'estimate_cost_lines', 'estimate_deposit_schedule',
           'quotation_versions', 'quotation_lines', 'project_checklist_items',
           'invoices', 'invoice_lines', 'schedule_of_values', 'change_orders'
+        )
+      order by table_name
+    `);
+    res.json({ ok: true, tables: tables.rows.map((row) => row.table_name) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/hr/schema/status', async (req, res, next) => {
+  try {
+    await ensureSchema();
+    const db = requireDatabase();
+    const tables = await db.query(`
+      select table_name
+      from information_schema.tables
+      where table_schema = 'public'
+        and table_name in (
+          'employees', 'pto_policies', 'pto_balances', 'pto_requests',
+          'company_holidays', 'handbook_documents', 'handbook_acknowledgements',
+          'onboarding_checklists', 'onboarding_tasks', 'training_courses',
+          'training_lessons', 'employee_training_assignments'
         )
       order by table_name
     `);
