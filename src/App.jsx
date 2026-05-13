@@ -9,6 +9,23 @@ const fallback = {
   training: [],
 };
 
+const defaultBrand = {
+  platformName: 'White Label Operations Portal',
+  tenantName: 'New Customer',
+  tenantSlug: 'new-customer',
+  primaryColor: '#172033',
+  accentColor: '#bb2e2e',
+  logoUrl: '',
+  customDomain: '',
+  supportEmail: '',
+  loadSteelCraftData: false,
+  loadMondayBoards: false,
+  loadExcelWorkbook: false,
+  templateMode: 'clean-structure',
+  enabledPortals: ['admin', 'employee', 'vendor', 'customer'],
+  employeeModules: ['sales', 'projects', 'planning', 'hr', 'accounts', 'contacts', 'erection'],
+};
+
 const topPortals = [
   { id: 'admin', title: 'Admin Portal', audience: 'Owner / system admin', purpose: 'Users, roles, database status, integrations, Monday sync, schema setup, permissions, and audit controls.' },
   { id: 'employee', title: 'Employee Portal', audience: 'Internal Steel Craft team', purpose: 'The internal operating system for sales, estimating, projects, HR, accounts, contacts, erection schedule, planning, billing, insurance, and POs.' },
@@ -42,6 +59,19 @@ function anniversary(startDate) {
   return date.toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
 }
 
+function readBrand() {
+  try {
+    const saved = window.localStorage.getItem('steelcraft_brand_controls_v1');
+    return saved ? JSON.parse(saved) : defaultBrand;
+  } catch {
+    return defaultBrand;
+  }
+}
+
+function saveBrand(next) {
+  window.localStorage.setItem('steelcraft_brand_controls_v1', JSON.stringify(next));
+}
+
 function Badge({ children, tone = 'dark' }) {
   return <span className={`badge badge-${tone}`}>{children}</span>;
 }
@@ -62,6 +92,8 @@ function App() {
   const [activeEmployeeModule, setActiveEmployeeModule] = useState('planning');
   const [activeEmployeeId, setActiveEmployeeId] = useState(1);
 
+  const isBrandRoute = window.location.pathname.replace(/\/$/, '') === '/brand';
+
   async function refresh() {
     try {
       const next = await apiGet('/api/hr');
@@ -77,6 +109,10 @@ function App() {
   }
 
   useEffect(() => { refresh(); }, []);
+
+  if (isBrandRoute) {
+    return <BrandControls status={status} />;
+  }
 
   const activeEmployee = data.employees.find((employee) => employee.id === Number(activeEmployeeId)) || data.employees[0];
   const employeeTraining = useMemo(() => data.training.filter((course) => course.assignedTo?.includes(activeEmployee?.id)), [data.training, activeEmployee?.id]);
@@ -192,6 +228,85 @@ function App() {
   );
 }
 
+function BrandControls({ status }) {
+  const [brand, setBrand] = useState(readBrand);
+
+  function updateField(field, value) {
+    const next = { ...brand, [field]: value };
+    setBrand(next);
+    saveBrand(next);
+  }
+
+  function toggleArray(field, value) {
+    const exists = brand[field].includes(value);
+    const next = { ...brand, [field]: exists ? brand[field].filter((item) => item !== value) : [...brand[field], value] };
+    setBrand(next);
+    saveBrand(next);
+  }
+
+  function resetCleanTemplate() {
+    setBrand(defaultBrand);
+    saveBrand(defaultBrand);
+  }
+
+  return (
+    <main className="app-shell brand-shell" style={{ '--brand-primary': brand.primaryColor, '--brand-accent': brand.accentColor }}>
+      <header className="hero">
+        <div>
+          <Badge tone="red">Hidden /brand controls</Badge>
+          <h1>White-label brand controls</h1>
+          <p>This area is intentionally not linked from the customer-facing app. Use it to prepare a new tenant without loading Steel Craft Monday boards, Steel Craft Excel workbook data, or Steel Craft-specific records.</p>
+          <p className="connection-status">{status}</p>
+        </div>
+        <aside className="hero-panel brand-preview">
+          <span>Tenant preview</span>
+          <strong>{brand.tenantName}</strong>
+          <small>{brand.platformName}</small>
+          <div className="brand-swatch-row"><i style={{ background: brand.primaryColor }} /><i style={{ background: brand.accentColor }} /></div>
+        </aside>
+      </header>
+
+      <div className="two-column wide-left">
+        <Card>
+          <div className="section-heading"><Badge>Tenant identity</Badge><h2>Main controls</h2><p>These settings should eventually save to tenant branding tables. For now, they are isolated in the hidden operator route.</p></div>
+          <div className="form-grid">
+            <Field label="Platform name"><input value={brand.platformName} onChange={(event) => updateField('platformName', event.target.value)} /></Field>
+            <Field label="Tenant/customer name"><input value={brand.tenantName} onChange={(event) => updateField('tenantName', event.target.value)} /></Field>
+            <Field label="Tenant slug"><input value={brand.tenantSlug} onChange={(event) => updateField('tenantSlug', event.target.value)} /></Field>
+            <Field label="Logo URL"><input value={brand.logoUrl} onChange={(event) => updateField('logoUrl', event.target.value)} placeholder="https://..." /></Field>
+            <Field label="Custom domain"><input value={brand.customDomain} onChange={(event) => updateField('customDomain', event.target.value)} placeholder="portal.customer.com" /></Field>
+            <Field label="Support email"><input value={brand.supportEmail} onChange={(event) => updateField('supportEmail', event.target.value)} placeholder="support@customer.com" /></Field>
+            <Field label="Primary color"><input type="color" value={brand.primaryColor} onChange={(event) => updateField('primaryColor', event.target.value)} /></Field>
+            <Field label="Accent color"><input type="color" value={brand.accentColor} onChange={(event) => updateField('accentColor', event.target.value)} /></Field>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="section-heading"><Badge tone="green">Clean tenant template</Badge><h2>New customer data rules</h2><p>These must stay off when opening the platform for a new customer.</p></div>
+          <div className="stack">
+            <label className="check-row"><input type="checkbox" checked={brand.loadSteelCraftData} onChange={(event) => updateField('loadSteelCraftData', event.target.checked)} /> Load Steel Craft records</label>
+            <label className="check-row"><input type="checkbox" checked={brand.loadMondayBoards} onChange={(event) => updateField('loadMondayBoards', event.target.checked)} /> Load Steel Craft Monday boards</label>
+            <label className="check-row"><input type="checkbox" checked={brand.loadExcelWorkbook} onChange={(event) => updateField('loadExcelWorkbook', event.target.checked)} /> Load Steel Craft Excel workbook/platform data</label>
+          </div>
+          <div className="warning-box">Default for new customers: structure only. No Steel Craft board data, no Steel Craft Excel data, no Steel Craft records.</div>
+          <button className="primary" onClick={resetCleanTemplate}>Reset to clean customer template</button>
+        </Card>
+      </div>
+
+      <div className="two-column">
+        <Card>
+          <div className="section-heading"><Badge>Enabled portals</Badge><h2>Four-portal shell</h2></div>
+          <div className="stack">{topPortals.map((portal) => <label className="check-row" key={portal.id}><input type="checkbox" checked={brand.enabledPortals.includes(portal.id)} onChange={() => toggleArray('enabledPortals', portal.id)} /> {portal.title}</label>)}</div>
+        </Card>
+        <Card>
+          <div className="section-heading"><Badge>Employee modules</Badge><h2>Internal modules</h2></div>
+          <div className="stack">{employeeModules.map((module) => <label className="check-row" key={module.id}><input type="checkbox" checked={brand.employeeModules.includes(module.id)} onChange={() => toggleArray('employeeModules', module.id)} /> {module.title}</label>)}</div>
+        </Card>
+      </div>
+    </main>
+  );
+}
+
 function AuthLanding({ onEnter, status }) {
   return (
     <main className="auth-shell">
@@ -199,9 +314,7 @@ function AuthLanding({ onEnter, status }) {
         <Badge tone="red">Authentication page</Badge>
         <h1>Steel Craft Operations Portal</h1>
         <p>This is the outside login gateway. After authentication, users are routed into exactly one of four portals based on role: Admin, Employee, Vendor, or Customer.</p>
-        <div className="portal-grid landing-grid">
-          {topPortals.map((portal) => <PortalSummary key={portal.id} portal={portal} />)}
-        </div>
+        <div className="portal-grid landing-grid">{topPortals.map((portal) => <PortalSummary key={portal.id} portal={portal} />)}</div>
         <p className="connection-status">{status}</p>
         <button className="primary auth-button" onClick={onEnter}>Enter portal preview</button>
       </section>
@@ -210,11 +323,7 @@ function AuthLanding({ onEnter, status }) {
 }
 
 function PortalSwitcher({ activePortal, setActivePortal }) {
-  return (
-    <nav className="portal-tabs">
-      {topPortals.map((portal) => <button key={portal.id} className={activePortal === portal.id ? 'active' : ''} onClick={() => setActivePortal(portal.id)}>{portal.title}</button>)}
-    </nav>
-  );
+  return <nav className="portal-tabs">{topPortals.map((portal) => <button key={portal.id} className={activePortal === portal.id ? 'active' : ''} onClick={() => setActivePortal(portal.id)}>{portal.title}</button>)}</nav>;
 }
 
 function PortalSummary({ portal }) {
@@ -222,45 +331,12 @@ function PortalSummary({ portal }) {
 }
 
 function AdminPortal({ data, status, pendingPto, openSupport }) {
-  return (
-    <Card>
-      <div className="section-heading"><Badge>Admin Portal</Badge><h2>System control center</h2><p>Admin is not the employee workspace. Admin owns users, roles, permissions, integrations, schema setup, audit logs, and global controls.</p></div>
-      <div className="stats-grid">
-        <div className="stat"><span>Database</span><strong>{status.includes('Connected') ? 'Online' : 'Check'}</strong><small>{status}</small></div>
-        <div className="stat"><span>Employees</span><strong>{data.employees.length}</strong><small>User setup source</small></div>
-        <div className="stat"><span>Pending PTO</span><strong>{pendingPto}</strong><small>Employee portal workflow</small></div>
-        <div className="stat"><span>Open HR Support</span><strong>{openSupport}</strong><small>HR admin review</small></div>
-      </div>
-      <div className="module-grid four-up">
-        {['User management', 'Role and portal access', 'Monday integration', 'Database schema setup', 'File storage integrations', 'Audit logs', 'Workflow rules', 'Global settings'].map((item) => <article className="module" key={item}><h3>{item}</h3><p>Admin-only configuration area.</p></article>)}
-      </div>
-    </Card>
-  );
+  return <Card><div className="section-heading"><Badge>Admin Portal</Badge><h2>System control center</h2><p>Admin is not the employee workspace. Admin owns users, roles, permissions, integrations, schema setup, audit logs, and global controls.</p></div><div className="stats-grid"><div className="stat"><span>Database</span><strong>{status.includes('Connected') ? 'Online' : 'Check'}</strong><small>{status}</small></div><div className="stat"><span>Employees</span><strong>{data.employees.length}</strong><small>User setup source</small></div><div className="stat"><span>Pending PTO</span><strong>{pendingPto}</strong><small>Employee portal workflow</small></div><div className="stat"><span>Open HR Support</span><strong>{openSupport}</strong><small>HR admin review</small></div></div><div className="module-grid four-up">{['User management', 'Role and portal access', 'Monday integration', 'Database schema setup', 'File storage integrations', 'Audit logs', 'Workflow rules', 'Global settings'].map((item) => <article className="module" key={item}><h3>{item}</h3><p>Admin-only configuration area.</p></article>)}</div></Card>;
 }
 
 function EmployeePortal(props) {
   const { activeEmployee, activeEmployeeId, setActiveEmployeeId, data, activeModule, setActiveModule, completedTraining, employeeTraining, pendingPto } = props;
-  return (
-    <>
-      <Card>
-        <div className="section-heading"><Badge>Employee Portal</Badge><h2>Internal Steel Craft operating portal</h2><p>Sales & Estimating, Project Portal, Planning Portal, HR, Accounts, Contacts, and Erection Schedule live here. Vendor and Customer portals do not live here.</p></div>
-        <div className="employee-context">
-          <Field label="Active employee"><select value={activeEmployeeId} onChange={(event) => setActiveEmployeeId(Number(event.target.value))}>{data.employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}</select></Field>
-          <div><span>Role</span><strong>{activeEmployee?.title}</strong></div>
-          <div><span>Department</span><strong>{activeEmployee?.department}</strong></div>
-          <div><span>Employment</span><strong>{activeEmployee?.employmentType}</strong></div>
-        </div>
-      </Card>
-
-      <nav className="room-tabs module-tabs">
-        {employeeModules.map((module) => <button key={module.id} className={activeModule === module.id ? 'active' : ''} onClick={() => setActiveModule(module.id)}>{module.title}</button>)}
-      </nav>
-
-      {activeModule === 'planning' && <PlanningPortal />}
-      {activeModule === 'hr' && <HrPortal {...props} completedTraining={completedTraining} employeeTraining={employeeTraining} pendingPto={pendingPto} />}
-      {activeModule !== 'planning' && activeModule !== 'hr' && <EmployeeModule module={employeeModules.find((module) => module.id === activeModule)} />}
-    </>
-  );
+  return <><Card><div className="section-heading"><Badge>Employee Portal</Badge><h2>Internal Steel Craft operating portal</h2><p>Sales & Estimating, Project Portal, Planning Portal, HR, Accounts, Contacts, and Erection Schedule live here. Vendor and Customer portals do not live here.</p></div><div className="employee-context"><Field label="Active employee"><select value={activeEmployeeId} onChange={(event) => setActiveEmployeeId(Number(event.target.value))}>{data.employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}</select></Field><div><span>Role</span><strong>{activeEmployee?.title}</strong></div><div><span>Department</span><strong>{activeEmployee?.department}</strong></div><div><span>Employment</span><strong>{activeEmployee?.employmentType}</strong></div></div></Card><nav className="room-tabs module-tabs">{employeeModules.map((module) => <button key={module.id} className={activeModule === module.id ? 'active' : ''} onClick={() => setActiveModule(module.id)}>{module.title}</button>)}</nav>{activeModule === 'planning' && <PlanningPortal />}{activeModule === 'hr' && <HrPortal {...props} completedTraining={completedTraining} employeeTraining={employeeTraining} pendingPto={pendingPto} />}{activeModule !== 'planning' && activeModule !== 'hr' && <EmployeeModule module={employeeModules.find((module) => module.id === activeModule)} />}</>;
 }
 
 function EmployeeModule({ module }) {
@@ -268,31 +344,14 @@ function EmployeeModule({ module }) {
 }
 
 function PlanningPortal() {
-  return (
-    <Card>
-      <div className="section-heading"><Badge>Planning Portal</Badge><h2>Billing, Insurance, and POs live here</h2><p>Planning is an internal Employee Portal module. It owns the operational planning workflows that should not be top-level outside portals.</p></div>
-      <div className="module-grid four-up">
-        {planningModules.map((module) => <article className="module" key={module.title}><Badge tone="green">{module.status}</Badge><h3>{module.title}</h3><p>{module.detail}</p></article>)}
-      </div>
-    </Card>
-  );
+  return <Card><div className="section-heading"><Badge>Planning Portal</Badge><h2>Billing, Insurance, and POs live here</h2><p>Planning is an internal Employee Portal module. It owns the operational planning workflows that should not be top-level outside portals.</p></div><div className="module-grid four-up">{planningModules.map((module) => <article className="module" key={module.title}><Badge tone="green">{module.status}</Badge><h3>{module.title}</h3><p>{module.detail}</p></article>)}</div></Card>;
 }
 
 function HrPortal(props) {
   const { data, activeEmployee, completedTraining, employeeTraining, pendingPto, submitPto, setPtoStatus, submitSupport, resolveSupport, acknowledgeHandbook, completeTraining, addTraining } = props;
   const rooms = ['Profile', 'PTO', 'Handbook', 'HR Support', 'Training'];
   const [activeHrRoom, setActiveHrRoom] = useState('Profile');
-  return (
-    <>
-      <Card><div className="section-heading"><Badge>HR Portal</Badge><h2>Salary employee HR room</h2><p>No time clock. HR is inside the Employee Portal and owns PTO, handbook, support requests, training, start dates, and anniversaries.</p></div><div className="metrics-grid"><Card><span>Start Date</span><strong>{String(activeEmployee?.startDate).slice(0, 10)}</strong><small>Anniversary: {anniversary(activeEmployee?.startDate)}</small></Card><Card><span>PTO Balance</span><strong>{activeEmployee?.ptoBalance} hrs</strong><small>{pendingPto} pending requests</small></Card><Card><span>Training</span><strong>{completedTraining} / {employeeTraining.length}</strong><small>Completed modules</small></Card><Card><span>Type</span><strong>Salary</strong><small>No punch tracking</small></Card></div></Card>
-      <nav className="room-tabs">{rooms.map((room) => <button key={room} className={activeHrRoom === room ? 'active' : ''} onClick={() => setActiveHrRoom(room)}>{room}</button>)}</nav>
-      {activeHrRoom === 'Profile' && <EmployeeProfile employee={activeEmployee} />}
-      {activeHrRoom === 'PTO' && <PtoRoom data={data} submitPto={submitPto} setPtoStatus={setPtoStatus} />}
-      {activeHrRoom === 'Handbook' && <HandbookRoom data={data} employee={activeEmployee} acknowledgeHandbook={acknowledgeHandbook} />}
-      {activeHrRoom === 'HR Support' && <SupportRoom data={data} submitSupport={submitSupport} resolveSupport={resolveSupport} />}
-      {activeHrRoom === 'Training' && <TrainingRoom data={data} employee={activeEmployee} completeTraining={completeTraining} addTraining={addTraining} />}
-    </>
-  );
+  return <><Card><div className="section-heading"><Badge>HR Portal</Badge><h2>Salary employee HR room</h2><p>No time clock. HR is inside the Employee Portal and owns PTO, handbook, support requests, training, start dates, and anniversaries.</p></div><div className="metrics-grid"><Card><span>Start Date</span><strong>{String(activeEmployee?.startDate).slice(0, 10)}</strong><small>Anniversary: {anniversary(activeEmployee?.startDate)}</small></Card><Card><span>PTO Balance</span><strong>{activeEmployee?.ptoBalance} hrs</strong><small>{pendingPto} pending requests</small></Card><Card><span>Training</span><strong>{completedTraining} / {employeeTraining.length}</strong><small>Completed modules</small></Card><Card><span>Type</span><strong>Salary</strong><small>No punch tracking</small></Card></div></Card><nav className="room-tabs">{rooms.map((room) => <button key={room} className={activeHrRoom === room ? 'active' : ''} onClick={() => setActiveHrRoom(room)}>{room}</button>)}</nav>{activeHrRoom === 'Profile' && <EmployeeProfile employee={activeEmployee} />}{activeHrRoom === 'PTO' && <PtoRoom data={data} submitPto={submitPto} setPtoStatus={setPtoStatus} />}{activeHrRoom === 'Handbook' && <HandbookRoom data={data} employee={activeEmployee} acknowledgeHandbook={acknowledgeHandbook} />}{activeHrRoom === 'HR Support' && <SupportRoom data={data} submitSupport={submitSupport} resolveSupport={resolveSupport} />}{activeHrRoom === 'Training' && <TrainingRoom data={data} employee={activeEmployee} completeTraining={completeTraining} addTraining={addTraining} />}</>;
 }
 
 function EmployeeProfile({ employee }) {
