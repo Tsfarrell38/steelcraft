@@ -1,49 +1,77 @@
-# Portal Module Map
+# Portal Architecture Source of Truth
+
+## Top-level architecture
+
+The app has exactly four top-level portals after the outside authentication page:
+
+1. Admin Portal
+2. Employee Portal
+3. Vendor Portal
+4. Customer Portal
+
+Do not keep adding standalone portals outside this structure. New internal operating modules belong inside the Employee Portal unless they are specifically for outside vendors or outside customers.
+
+## Outside entry point
+
+The first page is an authentication/login gateway.
+
+After authentication, role-based routing sends the user to one of four portals:
+
+- Admin users -> Admin Portal
+- Internal Steel Craft employees -> Employee Portal
+- Vendors -> Vendor Portal
+- Customers -> Customer Portal
 
 ## Admin Portal
 
-Purpose: Control center for migration, users, roles, workflow settings, integrations, and schema setup.
+Purpose: system control center.
 
-Current functions:
+Admin owns:
 
-- Health check
-- Initialize database schema
-- Sync Monday boards
-- Load Monday board summary
-- View database/Monday/storage status
+- Users
+- Roles
+- Portal/module permissions
+- Database status
+- Schema setup
+- Monday integration
+- File storage integration
+- Email/e-signature/integration settings
+- Audit logs
+- Global workflow rules
 
-Needed next:
+Admin is not the internal employee workspace.
 
-- Role/module access settings
-- User management
-- Integration settings for Monday, Egnyte/Dropbox, email, e-signature, lead enrichment
-- Workflow rule builder
-- Audit log viewer
+## Employee Portal
 
-## Sales & Estimating Portal
+Purpose: internal Steel Craft operating portal.
 
-Purpose: Convert the Excel estimate workbook logic into a platform flow.
+The Employee Portal contains these internal modules:
 
-Platform flow:
+- Sales & Estimating
+- Project Portal
+- Planning Portal
+- HR Portal
+- Accounts
+- Contacts
+- Erection Schedule
 
-1. Estimate Intake
-2. Scope Builder
-3. Cost Build
-4. Margin Review
-5. Quote Generator
-6. Project Checklist
-7. Convert to Project
-8. Billing/SOV/Change Orders
+### Sales & Estimating
 
-Must not look like a workbook.
+Includes:
 
-## Project Portal
+- Estimate intake
+- Scope builder
+- Cost build
+- Margin review
+- Quote generator
+- Project checklist
+- Convert to project
 
-Purpose: Run jobs after quote/contract approval.
+### Project Portal
 
-Stages:
+Includes:
 
-- Contracted
+- Contracted jobs
 - Engineering
 - Material
 - Fabrication
@@ -51,63 +79,101 @@ Stages:
 - Erection
 - Punch
 - Closeout
+- Project status
+- Project documents
 
-Connects to:
+### Planning Portal
 
-- Billing triggers
-- Erection schedule
-- Vendor packets
-- Customer portal documents
-- Egnyte/Dropbox project folders
-- SOV/change order/invoice data
+Planning Portal lives inside the Employee Portal.
 
-## Employee / Employer Room
+Planning includes:
 
-Purpose: Employee-facing HR and training hub for salary employees.
+- Billing
+- Insurance
+- Purchase Orders / POs
+- Job readiness
+- Internal planning schedule
+- SOV / draw / invoice visibility
+- COI and insurance tracking
+- Vendor assignment to POs
 
-Remove the time clock completely. Do not include punch-in/punch-out, shift tracking, payroll time capture, or time-clock widgets.
+POs belong in the Employee Portal under Planning. Vendor-facing PO visibility can be shown in the external Vendor Portal, but PO creation, internal approval, and PO management belong inside Employee > Planning.
 
-Priority items:
+### HR Portal
 
-- Employee profile and salary employee record
+HR Portal lives inside the Employee Portal.
+
+HR includes:
+
+- Salary employee records
 - Start date
-- Anniversary date or calculated work anniversary
-- PTO balance and PTO tracking
-- Time-off request form
-- Time-off request history and approval status
-- HR concerns / complaints / employee issues intake
-- Employee handbook access
-- Employee handbook acknowledgement/signature
+- Anniversary tracking
+- PTO balance
+- PTO tracking
+- Time-off requests
+- Handbook
+- Handbook acknowledgement
+- HR support / concerns
 - Training module room
-- Assigned training modules
-- Training completion tracking
-- Safety acknowledgements, if applicable
-- Employee documents
+- Onboarding
 
-## HR Admin Portal
+No time clock. All employees are salary.
 
-Purpose: Employer/admin side for employee records, PTO, holidays, onboarding, handbook, HR concerns, and training.
+### Accounts
 
-Priority items:
+Includes:
 
-- Employee records
-- Start date and anniversary tracking
-- PTO tracker
-- Time-off request review/approval
-- Holiday calendar
-- HR concern/complaint review and status tracking
-- Onboarding checklist
-- Employee handbook upload/versioning
-- Employee handbook electronic acknowledgement/signature
-- Training module management
-- Software/process training
-- Training completion tracking
+- Customer accounts
+- Vendor accounts
+- Contractor accounts
+- Account history
+- Account ownership
+
+### Contacts
+
+Includes:
+
+- People connected to customers
+- Vendor contacts
+- Contractor contacts
+- Internal contacts
+- Project contacts
+- Estimate contacts
+
+### Erection Schedule
+
+Includes:
+
+- Crew planning
+- Erection dates
+- Field readiness
+- Schedule conflicts
+- Erection milestones
+
+## Vendor Portal
+
+Purpose: outside vendor access.
+
+Vendor Portal is outside the Employee Portal.
+
+Vendors should see only:
+
+- Assigned project/package
+- PO visibility relevant to them
+- Due dates
+- Vendor packet files
+- Upload slots
+- Status notes
+
+Vendors should not see internal employee modules.
 
 ## Customer Portal
 
-Purpose: Customer-facing filtered view.
+Purpose: outside customer access.
 
-Customer should see only approved/assigned documents/statuses:
+Customer Portal is outside the Employee Portal.
+
+Customers should see only approved/assigned customer-facing items:
 
 - Project status
 - Approved quote
@@ -117,47 +183,15 @@ Customer should see only approved/assigned documents/statuses:
 - Upload/request area
 - Approvals
 
-## Vendor Portal
+Customers should not see internal employee modules.
 
-Purpose: Vendor-specific assigned access.
+## Architecture rule
 
-Vendor should see only:
+When adding a new feature, first decide where it belongs:
 
-- Assigned project/package
-- PO details
-- Due dates
-- Vendor packet files
-- Upload slots
-- Status notes
+- System management -> Admin Portal
+- Internal operations -> Employee Portal
+- Outside vendor workflows -> Vendor Portal
+- Outside customer workflows -> Customer Portal
 
-## Contractor Lead Intelligence Module
-
-Purpose: Apollo-style lead system focused on general contractors and related commercial construction targets.
-
-Clean approach:
-
-- Company discovery
-- Public business/company data
-- Contact discovery
-- Enrichment provider integration
-- Email verification/confidence
-- CRM/sales workflow
-
-Fields:
-
-- Company name
-- Company type
-- Website
-- Phone
-- City/county/state
-- Service area
-- Decision maker name
-- Title
-- Email
-- Email confidence: verified / likely / unverified / role-based / main office only
-- Source
-- Outreach status
-- Assigned salesperson
-- Last contacted
-- Next follow-up
-- Notes
+Do not create a fifth top-level portal without an explicit architecture decision.

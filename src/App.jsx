@@ -9,6 +9,30 @@ const fallback = {
   training: [],
 };
 
+const topPortals = [
+  { id: 'admin', title: 'Admin Portal', audience: 'Owner / system admin', purpose: 'Users, roles, database status, integrations, Monday sync, schema setup, permissions, and audit controls.' },
+  { id: 'employee', title: 'Employee Portal', audience: 'Internal Steel Craft team', purpose: 'The internal operating system for sales, estimating, projects, HR, accounts, contacts, erection schedule, planning, billing, insurance, and POs.' },
+  { id: 'vendor', title: 'Vendor Portal', audience: 'Outside vendors', purpose: 'External vendor access for assigned project packages, PO visibility, due dates, uploads, and vendor packet status.' },
+  { id: 'customer', title: 'Customer Portal', audience: 'Outside customers', purpose: 'External customer access for approved project status, documents, quotes, contracts, change orders, payments, approvals, and uploads.' },
+];
+
+const employeeModules = [
+  { id: 'sales', title: 'Sales & Estimating', description: 'Estimate intake, scope builder, cost build, margin review, quote generator, and project checklist.' },
+  { id: 'projects', title: 'Project Portal', description: 'Contracted jobs, engineering, material, fabrication, delivery, erection, punch, and closeout.' },
+  { id: 'planning', title: 'Planning Portal', description: 'Planning hub that owns billing, insurance, purchase orders, schedules, job readiness, and internal execution.' },
+  { id: 'hr', title: 'HR Portal', description: 'Salary employee records, PTO, handbook, HR support, onboarding, and training modules.' },
+  { id: 'accounts', title: 'Accounts', description: 'Companies, customer accounts, vendor accounts, project account ownership, and account history.' },
+  { id: 'contacts', title: 'Contacts', description: 'People tied to customers, vendors, contractors, internal teams, jobs, and estimates.' },
+  { id: 'erection', title: 'Erection Schedule', description: 'Crew planning, erection dates, field readiness, milestones, and schedule conflicts.' },
+];
+
+const planningModules = [
+  { title: 'Billing', status: 'Inside Employee > Planning', detail: 'Invoices, SOV, draws, deposits, change order billing, and collection visibility.' },
+  { title: 'Insurance', status: 'Inside Employee > Planning', detail: 'COIs, job insurance requirements, expiration tracking, and compliance checks.' },
+  { title: 'Purchase Orders', status: 'Inside Employee > Planning', detail: 'PO creation, vendor assignment, approvals, due dates, and PO status.' },
+  { title: 'Job Readiness', status: 'Inside Employee > Planning', detail: 'Checklist before fabrication, delivery, erection, and closeout.' },
+];
+
 function employeeName(data, id) {
   return data.employees.find((employee) => employee.id === Number(id))?.name || 'Unknown employee';
 }
@@ -33,15 +57,16 @@ function Field({ label, children }) {
 function App() {
   const [data, setData] = useState(fallback);
   const [status, setStatus] = useState('Connecting to DigitalOcean PostgreSQL...');
-  const [activeRoom, setActiveRoom] = useState('employee');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [activePortal, setActivePortal] = useState('employee');
+  const [activeEmployeeModule, setActiveEmployeeModule] = useState('planning');
   const [activeEmployeeId, setActiveEmployeeId] = useState(1);
 
   async function refresh() {
     try {
       const next = await apiGet('/api/hr');
       setData(next);
-      if (!next.employees?.length) setStatus('Backend connected. Add employees to begin.');
-      else setStatus('Connected to DigitalOcean PostgreSQL');
+      setStatus(next.employees?.length ? 'Connected to DigitalOcean PostgreSQL' : 'Backend connected. Add employees to begin.');
       if (next.employees?.length && !next.employees.some((employee) => employee.id === Number(activeEmployeeId))) {
         setActiveEmployeeId(next.employees[0].id);
       }
@@ -118,26 +143,161 @@ function App() {
     await refresh();
   }
 
-  const rooms = [['employee', 'Employee Room'], ['pto', 'PTO Tracker'], ['handbook', 'Handbook'], ['support', 'HR Support'], ['training', 'Training Room'], ['admin', 'HR Admin']];
+  if (!isAuthenticated) {
+    return <AuthLanding onEnter={() => setIsAuthenticated(true)} status={status} />;
+  }
 
   return (
     <main className="app-shell">
-      <header className="hero"><div><Badge tone="red">Time clock removed</Badge><h1>Steel Craft HR Room</h1><p>DigitalOcean/PostgreSQL workflows for salary employees: PTO, handbook acknowledgement, HR support, training completion, employee records, start dates, and anniversaries.</p><p className="connection-status">{status}</p></div><aside className="hero-panel"><span>Active employee</span><select value={activeEmployee?.id || ''} onChange={(event) => setActiveEmployeeId(Number(event.target.value))}>{data.employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}</select><small>{activeEmployee?.title} - {activeEmployee?.department}</small></aside></header>
-      <nav className="room-tabs">{rooms.map(([id, label]) => <button key={id} className={activeRoom === id ? 'active' : ''} onClick={() => setActiveRoom(id)}>{label}</button>)}</nav>
-      {activeEmployee && <div className="metrics-grid"><Card><span>Employment</span><strong>{activeEmployee.employmentType}</strong><small>No punch tracking</small></Card><Card><span>Start Date</span><strong>{String(activeEmployee.startDate).slice(0, 10)}</strong><small>Anniversary: {anniversary(activeEmployee.startDate)}</small></Card><Card><span>PTO Balance</span><strong>{activeEmployee.ptoBalance} hrs</strong><small>{pendingPto} pending requests</small></Card><Card><span>Training</span><strong>{completedTraining} / {employeeTraining.length}</strong><small>Completed modules</small></Card></div>}
-      {activeRoom === 'employee' && <EmployeeRoom employee={activeEmployee} />}
-      {activeRoom === 'pto' && <PtoRoom data={data} submitPto={submitPto} setPtoStatus={setPtoStatus} />}
-      {activeRoom === 'handbook' && <HandbookRoom data={data} employee={activeEmployee} acknowledgeHandbook={acknowledgeHandbook} />}
-      {activeRoom === 'support' && <SupportRoom data={data} submitSupport={submitSupport} resolveSupport={resolveSupport} />}
-      {activeRoom === 'training' && <TrainingRoom data={data} employee={activeEmployee} completeTraining={completeTraining} addTraining={addTraining} />}
-      {activeRoom === 'admin' && <AdminRoom data={data} openSupport={openSupport} pendingPto={pendingPto} />}
+      <header className="hero">
+        <div>
+          <Badge tone="red">Four-portal architecture</Badge>
+          <h1>Steel Craft Portal Gateway</h1>
+          <p>Authenticated entry into four portals only: Admin, Employee, Vendor, and Customer. Internal modules live inside Employee. Vendor and Customer stay outside Employee.</p>
+          <p className="connection-status">{status}</p>
+        </div>
+        <aside className="hero-panel">
+          <span>Signed in view</span>
+          <strong>{topPortals.find((portal) => portal.id === activePortal)?.title}</strong>
+          <small>Architecture-first portal shell</small>
+        </aside>
+      </header>
+
+      <PortalSwitcher activePortal={activePortal} setActivePortal={setActivePortal} />
+
+      {activePortal === 'admin' && <AdminPortal data={data} status={status} pendingPto={pendingPto} openSupport={openSupport} />}
+      {activePortal === 'employee' && (
+        <EmployeePortal
+          data={data}
+          activeEmployee={activeEmployee}
+          activeEmployeeId={activeEmployeeId}
+          setActiveEmployeeId={setActiveEmployeeId}
+          activeModule={activeEmployeeModule}
+          setActiveModule={setActiveEmployeeModule}
+          completedTraining={completedTraining}
+          employeeTraining={employeeTraining}
+          pendingPto={pendingPto}
+          submitPto={submitPto}
+          setPtoStatus={setPtoStatus}
+          submitSupport={submitSupport}
+          resolveSupport={resolveSupport}
+          acknowledgeHandbook={acknowledgeHandbook}
+          completeTraining={completeTraining}
+          addTraining={addTraining}
+        />
+      )}
+      {activePortal === 'vendor' && <ExternalPortal type="Vendor" />}
+      {activePortal === 'customer' && <ExternalPortal type="Customer" />}
     </main>
   );
 }
 
-function EmployeeRoom({ employee }) {
+function AuthLanding({ onEnter, status }) {
+  return (
+    <main className="auth-shell">
+      <section className="auth-card">
+        <Badge tone="red">Authentication page</Badge>
+        <h1>Steel Craft Operations Portal</h1>
+        <p>This is the outside login gateway. After authentication, users are routed into exactly one of four portals based on role: Admin, Employee, Vendor, or Customer.</p>
+        <div className="portal-grid landing-grid">
+          {topPortals.map((portal) => <PortalSummary key={portal.id} portal={portal} />)}
+        </div>
+        <p className="connection-status">{status}</p>
+        <button className="primary auth-button" onClick={onEnter}>Enter portal preview</button>
+      </section>
+    </main>
+  );
+}
+
+function PortalSwitcher({ activePortal, setActivePortal }) {
+  return (
+    <nav className="portal-tabs">
+      {topPortals.map((portal) => <button key={portal.id} className={activePortal === portal.id ? 'active' : ''} onClick={() => setActivePortal(portal.id)}>{portal.title}</button>)}
+    </nav>
+  );
+}
+
+function PortalSummary({ portal }) {
+  return <article className="portal-card"><Badge>{portal.audience}</Badge><h3>{portal.title}</h3><p>{portal.purpose}</p></article>;
+}
+
+function AdminPortal({ data, status, pendingPto, openSupport }) {
+  return (
+    <Card>
+      <div className="section-heading"><Badge>Admin Portal</Badge><h2>System control center</h2><p>Admin is not the employee workspace. Admin owns users, roles, permissions, integrations, schema setup, audit logs, and global controls.</p></div>
+      <div className="stats-grid">
+        <div className="stat"><span>Database</span><strong>{status.includes('Connected') ? 'Online' : 'Check'}</strong><small>{status}</small></div>
+        <div className="stat"><span>Employees</span><strong>{data.employees.length}</strong><small>User setup source</small></div>
+        <div className="stat"><span>Pending PTO</span><strong>{pendingPto}</strong><small>Employee portal workflow</small></div>
+        <div className="stat"><span>Open HR Support</span><strong>{openSupport}</strong><small>HR admin review</small></div>
+      </div>
+      <div className="module-grid four-up">
+        {['User management', 'Role and portal access', 'Monday integration', 'Database schema setup', 'File storage integrations', 'Audit logs', 'Workflow rules', 'Global settings'].map((item) => <article className="module" key={item}><h3>{item}</h3><p>Admin-only configuration area.</p></article>)}
+      </div>
+    </Card>
+  );
+}
+
+function EmployeePortal(props) {
+  const { activeEmployee, activeEmployeeId, setActiveEmployeeId, data, activeModule, setActiveModule, completedTraining, employeeTraining, pendingPto } = props;
+  return (
+    <>
+      <Card>
+        <div className="section-heading"><Badge>Employee Portal</Badge><h2>Internal Steel Craft operating portal</h2><p>Sales & Estimating, Project Portal, Planning Portal, HR, Accounts, Contacts, and Erection Schedule live here. Vendor and Customer portals do not live here.</p></div>
+        <div className="employee-context">
+          <Field label="Active employee"><select value={activeEmployeeId} onChange={(event) => setActiveEmployeeId(Number(event.target.value))}>{data.employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}</select></Field>
+          <div><span>Role</span><strong>{activeEmployee?.title}</strong></div>
+          <div><span>Department</span><strong>{activeEmployee?.department}</strong></div>
+          <div><span>Employment</span><strong>{activeEmployee?.employmentType}</strong></div>
+        </div>
+      </Card>
+
+      <nav className="room-tabs module-tabs">
+        {employeeModules.map((module) => <button key={module.id} className={activeModule === module.id ? 'active' : ''} onClick={() => setActiveModule(module.id)}>{module.title}</button>)}
+      </nav>
+
+      {activeModule === 'planning' && <PlanningPortal />}
+      {activeModule === 'hr' && <HrPortal {...props} completedTraining={completedTraining} employeeTraining={employeeTraining} pendingPto={pendingPto} />}
+      {activeModule !== 'planning' && activeModule !== 'hr' && <EmployeeModule module={employeeModules.find((module) => module.id === activeModule)} />}
+    </>
+  );
+}
+
+function EmployeeModule({ module }) {
+  return <Card><div className="section-heading"><Badge>Employee Module</Badge><h2>{module.title}</h2><p>{module.description}</p></div><div className="placeholder-box">This module is correctly placed inside the Employee Portal. Next step is building its database-backed workflow screens.</div></Card>;
+}
+
+function PlanningPortal() {
+  return (
+    <Card>
+      <div className="section-heading"><Badge>Planning Portal</Badge><h2>Billing, Insurance, and POs live here</h2><p>Planning is an internal Employee Portal module. It owns the operational planning workflows that should not be top-level outside portals.</p></div>
+      <div className="module-grid four-up">
+        {planningModules.map((module) => <article className="module" key={module.title}><Badge tone="green">{module.status}</Badge><h3>{module.title}</h3><p>{module.detail}</p></article>)}
+      </div>
+    </Card>
+  );
+}
+
+function HrPortal(props) {
+  const { data, activeEmployee, completedTraining, employeeTraining, pendingPto, submitPto, setPtoStatus, submitSupport, resolveSupport, acknowledgeHandbook, completeTraining, addTraining } = props;
+  const rooms = ['Profile', 'PTO', 'Handbook', 'HR Support', 'Training'];
+  const [activeHrRoom, setActiveHrRoom] = useState('Profile');
+  return (
+    <>
+      <Card><div className="section-heading"><Badge>HR Portal</Badge><h2>Salary employee HR room</h2><p>No time clock. HR is inside the Employee Portal and owns PTO, handbook, support requests, training, start dates, and anniversaries.</p></div><div className="metrics-grid"><Card><span>Start Date</span><strong>{String(activeEmployee?.startDate).slice(0, 10)}</strong><small>Anniversary: {anniversary(activeEmployee?.startDate)}</small></Card><Card><span>PTO Balance</span><strong>{activeEmployee?.ptoBalance} hrs</strong><small>{pendingPto} pending requests</small></Card><Card><span>Training</span><strong>{completedTraining} / {employeeTraining.length}</strong><small>Completed modules</small></Card><Card><span>Type</span><strong>Salary</strong><small>No punch tracking</small></Card></div></Card>
+      <nav className="room-tabs">{rooms.map((room) => <button key={room} className={activeHrRoom === room ? 'active' : ''} onClick={() => setActiveHrRoom(room)}>{room}</button>)}</nav>
+      {activeHrRoom === 'Profile' && <EmployeeProfile employee={activeEmployee} />}
+      {activeHrRoom === 'PTO' && <PtoRoom data={data} submitPto={submitPto} setPtoStatus={setPtoStatus} />}
+      {activeHrRoom === 'Handbook' && <HandbookRoom data={data} employee={activeEmployee} acknowledgeHandbook={acknowledgeHandbook} />}
+      {activeHrRoom === 'HR Support' && <SupportRoom data={data} submitSupport={submitSupport} resolveSupport={resolveSupport} />}
+      {activeHrRoom === 'Training' && <TrainingRoom data={data} employee={activeEmployee} completeTraining={completeTraining} addTraining={addTraining} />}
+    </>
+  );
+}
+
+function EmployeeProfile({ employee }) {
   if (!employee) return null;
-  return <Card><div className="section-heading"><Badge>Employee / Employer Room</Badge><h2>{employee.name}</h2><p>Salary employee profile with PTO, start date, anniversary, handbook, training, and HR support access.</p></div><div className="profile-grid"><div><span>Title</span><strong>{employee.title}</strong></div><div><span>Department</span><strong>{employee.department}</strong></div><div><span>Manager</span><strong>{employee.manager}</strong></div><div><span>Status</span><strong>{employee.status}</strong></div></div></Card>;
+  return <Card><div className="profile-grid"><div><span>Name</span><strong>{employee.name}</strong></div><div><span>Title</span><strong>{employee.title}</strong></div><div><span>Manager</span><strong>{employee.manager}</strong></div><div><span>Status</span><strong>{employee.status}</strong></div></div></Card>;
 }
 
 function PtoRoom({ data, submitPto, setPtoStatus }) {
@@ -157,8 +317,9 @@ function TrainingRoom({ data, employee, completeTraining, addTraining }) {
   return <div className="two-column wide-left"><Card><div className="section-heading"><Badge>Training Module Room</Badge><h2>Assigned training</h2></div><div className="module-grid">{data.training.filter((course) => course.assignedTo?.includes(employee?.id)).map((course) => { const done = course.completedBy?.includes(employee?.id); return <article className="module" key={course.id}><div><Badge>{course.category}</Badge><h3>{course.title}</h3><ul>{course.lessons.map((lesson) => <li key={lesson}>{lesson}</li>)}</ul></div><button disabled={done} onClick={() => completeTraining(course.id)}>{done ? 'Completed' : 'Mark complete'}</button></article>; })}</div></Card><Card><div className="section-heading"><Badge>Admin</Badge><h2>Create module</h2></div><form onSubmit={addTraining} className="form-grid"><Field label="Title"><input name="title" required /></Field><Field label="Category"><input name="category" required /></Field><Field label="Lessons"><textarea name="lessons" rows="6" placeholder="One lesson per line" required /></Field><button className="primary">Add module</button></form></Card></div>;
 }
 
-function AdminRoom({ data, openSupport, pendingPto }) {
-  return <Card><div className="section-heading"><Badge>HR Admin</Badge><h2>Employer controls</h2><p>Database-backed dashboard for employee records, PTO approvals, HR support, handbook acknowledgement, and training completion.</p></div><div className="stats-grid"><div className="stat"><span>Employees</span><strong>{data.employees.length}</strong><small>All salary</small></div><div className="stat"><span>Pending PTO</span><strong>{pendingPto}</strong><small>Awaiting review</small></div><div className="stat"><span>Open HR Support</span><strong>{openSupport}</strong><small>Needs follow-up</small></div><div className="stat"><span>Handbook Signed</span><strong>{data.handbook?.acknowledgedBy?.length || 0}/{data.employees.length}</strong><small>Current version</small></div></div><div className="employee-table">{data.employees.map((employee) => <div key={employee.id}><strong>{employee.name}</strong><span>{employee.title}</span><span>Start: {String(employee.startDate).slice(0, 10)}</span><span>Anniversary: {anniversary(employee.startDate)}</span><span>PTO: {employee.ptoBalance} hrs</span></div>)}</div></Card>;
+function ExternalPortal({ type }) {
+  const isVendor = type === 'Vendor';
+  return <Card><div className="section-heading"><Badge>{type} Portal</Badge><h2>{type} access stays outside Employee</h2><p>{isVendor ? 'Vendors receive external access only to assigned project packages, PO visibility, due dates, upload slots, and vendor packet status.' : 'Customers receive external access only to approved project status, customer-facing documents, quotes, contracts, change orders, approvals, and uploads.'}</p></div><div className="placeholder-box">Authentication will route {type.toLowerCase()} users directly here, not through the Employee Portal.</div></Card>;
 }
 
 export default App;
