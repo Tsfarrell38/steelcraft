@@ -10,6 +10,51 @@ const topPortals = [
   ['customer', 'Customer Portal', 'Outside customers', 'Approved project status, documents, quotes, contracts, change orders, payments, and approvals.']
 ];
 
+const demoRoles = [
+  {
+    id: 'admin-owner',
+    name: 'Admin / Owner',
+    description: 'Full system access. Admin users see every portal and manage permissions.',
+    portals: ['admin', 'employee', 'accounting', 'vendor', 'customer']
+  },
+  {
+    id: 'accounting',
+    name: 'Accounting',
+    description: 'Accounting staff can work internally and manage financial workflows.',
+    portals: ['employee', 'accounting']
+  },
+  {
+    id: 'purchasing',
+    name: 'Purchasing',
+    description: 'Purchasing can work internally, manage accounting/PO workflows, and see vendor access.',
+    portals: ['employee', 'accounting', 'vendor']
+  },
+  {
+    id: 'project-manager',
+    name: 'Project Manager',
+    description: 'Project managers work internally and may access customer-facing project views.',
+    portals: ['employee', 'customer']
+  },
+  {
+    id: 'employee',
+    name: 'Employee',
+    description: 'Standard internal employee access.',
+    portals: ['employee']
+  },
+  {
+    id: 'vendor',
+    name: 'Vendor User',
+    description: 'External vendor access only.',
+    portals: ['vendor']
+  },
+  {
+    id: 'customer',
+    name: 'Customer User',
+    description: 'External customer access only.',
+    portals: ['customer']
+  }
+];
+
 const employeeModules = [
   ['sales', 'Sales & Estimating', 'Estimate intake, scope builder, cost build, margin review, quote generator, and project checklist.'],
   ['projects', 'Project Portal', 'Contracted jobs, engineering, material, fabrication, delivery, erection, punch, and closeout.'],
@@ -64,6 +109,10 @@ function brandStyle(brand) {
   };
 }
 
+function portalMeta(id) {
+  return topPortals.find(([portalId]) => portalId === id) || topPortals[0];
+}
+
 function BrandMark({ brand }) {
   return (
     <div className="brand">
@@ -88,13 +137,19 @@ function StatusCard({ label, value, detail }) {
   );
 }
 
-function Shell({ brand, activePortal, setActivePortal, children }) {
+function Shell({ brand, activePortal, setActivePortal, user, signOut, children }) {
+  const allowedPortals = topPortals.filter(([id]) => user.portals.includes(id));
   return (
     <main className="dashboard" style={brandStyle(brand)}>
       <aside className="side panel">
         <BrandMark brand={brand} />
         <p className="side-label">{brand.tenantName}</p>
-        {topPortals.map(([id, title]) => (
+        <div className="side-meta">
+          <span>Signed in as</span>
+          <strong>{user.name}</strong>
+          <small>{user.portals.length} portal{user.portals.length === 1 ? '' : 's'} available</small>
+        </div>
+        {allowedPortals.map(([id, title]) => (
           <button key={id} className={id === activePortal ? 'active' : ''} onClick={() => setActivePortal(id)}>
             <span className="nav-dot">▦</span>{title}
           </button>
@@ -102,6 +157,7 @@ function Shell({ brand, activePortal, setActivePortal, children }) {
         <div className="side-footer">
           <span>White-label controls</span>
           <a href="/brand">/brand</a>
+          <button className="sign-out" onClick={signOut}>Sign out</button>
         </div>
       </aside>
       <section className="workspace">{children}</section>
@@ -125,12 +181,12 @@ function AdminPortal() {
       <div className="stats-grid">
         <StatusCard label="Database" value="connected" detail="Ready" />
         <StatusCard label="Portal Shell" value="5 portals" detail="Admin, Employee, Accounting, Vendor, Customer" />
-        <StatusCard label="Brand Controls" value="/brand" detail="Hidden operator route" />
+        <StatusCard label="Role Access" value="active" detail="Portal visibility by role" />
         <StatusCard label="Storage" value="not set" detail="Needs attention" />
       </div>
       <div className="workspace-grid">
-        <article className="feature panel large"><p className="eyebrow">Admin controls</p><h2>System management</h2><p>Admin stays separate from the employee workspace. This is the owner/operator control panel for platform setup.</p><div className="pill-row"><span>User management</span><span>Role access</span><span>Schema setup</span><span>Integrations</span></div></article>
-        <RecordList title="Admin build lanes" rows={[['Users and roles', 'Portal and module access by role', 'Core'], ['Database setup', 'Schema status and migrations', 'Core'], ['Integrations', 'Monday, storage, email, e-signature', 'Next'], ['Tenant controls', 'White-label settings and clean templates', '/brand']]} />
+        <article className="feature panel large"><p className="eyebrow">Admin controls</p><h2>Role-based portal access</h2><p>Admins assign which portals each role can see. A user can have one portal, several portals, or all five portals.</p><div className="pill-row"><span>User management</span><span>Role access</span><span>Portal permissions</span><span>Integrations</span></div></article>
+        <RecordList title="Example access rules" rows={demoRoles.map((role) => [role.name, role.description, role.portals.map((id) => portalMeta(id)[1]).join(', ')])} />
       </div>
     </>
   );
@@ -180,15 +236,37 @@ function RecordList({ title, rows }) {
   return <article className="feature panel"><h2>{title}</h2><div className="data-rows">{rows.map(([name, detail, status]) => <div className="data-row" key={name}><div><strong>{name}</strong><span>{detail}</span></div><b>{status}</b></div>)}</div></article>;
 }
 
-function AuthLanding({ brand, onEnter }) {
+function AuthLanding({ brand, onSignIn }) {
+  const [selectedRoleId, setSelectedRoleId] = useState('admin-owner');
+  const selectedRole = demoRoles.find((role) => role.id === selectedRoleId) || demoRoles[0];
   return (
     <main className="landing-dark" style={brandStyle(brand)}>
-      <section className="landing-card panel">
-        <BrandMark brand={brand} />
-        <p className="eyebrow">Authentication page</p>
-        <h1>{brand.logoText} Operations Portal</h1>
-        <p>Role-based gateway into five portals: Admin, Employee, Accounting, Vendor, and Customer.</p>
-        <div className="portal-tiles">{topPortals.map(([id, title, audience, purpose]) => <article key={id} className="portal-tile"><p>{audience}</p><h3>{title}</h3><span>{purpose}</span><button onClick={() => onEnter(id)}>Open {title}</button></article>)}</div>
+      <section className="landing-card panel auth-layout">
+        <div className="auth-copy">
+          <BrandMark brand={brand} />
+          <p className="eyebrow">Authentication page</p>
+          <h1>{brand.logoText} Operations Portal</h1>
+          <p>This link comes from the finished website. Users authenticate here first, then the app routes them into the portal access assigned to their role.</p>
+          <div className="selected-access">
+            <span>Selected role</span>
+            <strong>{selectedRole.name}</strong>
+            <small>{selectedRole.portals.map((id) => portalMeta(id)[1]).join(' · ')}</small>
+          </div>
+          <button className="auth-submit" onClick={() => onSignIn(selectedRole)}>Sign in and route by role</button>
+        </div>
+        <div className="role-panel">
+          <p className="eyebrow">Demo role selector</p>
+          <h2>Portal access is admin-controlled</h2>
+          <div className="role-list">
+            {demoRoles.map((role) => (
+              <button key={role.id} className={selectedRoleId === role.id ? 'active' : ''} onClick={() => setSelectedRoleId(role.id)}>
+                <strong>{role.name}</strong>
+                <span>{role.description}</span>
+                <small>{role.portals.map((id) => portalMeta(id)[1]).join(' · ')}</small>
+              </button>
+            ))}
+          </div>
+        </div>
       </section>
     </main>
   );
@@ -220,15 +298,25 @@ function BrandControls() {
 
 function App() {
   const isBrandRoute = window.location.pathname.replace(/\/$/, '') === '/brand';
-  const [authenticated, setAuthenticated] = useState(false);
+  const [user, setUser] = useState(null);
   const [activePortal, setActivePortal] = useState('admin');
   const brand = useMemo(loadBrand, []);
 
+  function signIn(role) {
+    setUser(role);
+    setActivePortal(role.portals[0]);
+  }
+
+  function signOut() {
+    setUser(null);
+    setActivePortal('admin');
+  }
+
   if (isBrandRoute) return <BrandControls />;
-  if (!authenticated) return <AuthLanding brand={brand} onEnter={(portalId) => { setActivePortal(portalId); setAuthenticated(true); }} />;
+  if (!user) return <AuthLanding brand={brand} onSignIn={signIn} />;
 
   return (
-    <Shell brand={brand} activePortal={activePortal} setActivePortal={setActivePortal}>
+    <Shell brand={brand} user={user} signOut={signOut} activePortal={activePortal} setActivePortal={setActivePortal}>
       {activePortal === 'admin' && <AdminPortal />}
       {activePortal === 'employee' && <EmployeePortal />}
       {activePortal === 'accounting' && <AccountingPortal />}
