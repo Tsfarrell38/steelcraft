@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Steel Craft ERP</title>
   <style>
-    /* The dock trigger is controlled by the selected brand layout, not hardwired to the header. */
+    /* Floating dock trigger follows the selected navigation layout. */
     .erp-topbar .dock-trigger {
       position: fixed !important;
       z-index: 39 !important;
@@ -16,17 +16,17 @@
     .layout-left-sidebar .erp-topbar .dock-trigger {
       left: 18px !important;
       right: auto !important;
-      top: 50% !important;
+      top: 96px !important;
       bottom: auto !important;
-      transform: translateY(-50%) !important;
+      transform: none !important;
     }
     .layout-dock-right .erp-topbar .dock-trigger,
     .layout-right-sidebar .erp-topbar .dock-trigger {
       right: 18px !important;
       left: auto !important;
-      top: 50% !important;
+      top: 96px !important;
       bottom: auto !important;
-      transform: translateY(-50%) !important;
+      transform: none !important;
     }
     .layout-bottom-dock .erp-topbar .dock-trigger {
       left: 50% !important;
@@ -39,8 +39,8 @@
     .layout-command-center .erp-topbar .dock-trigger {
       left: 50% !important;
       right: auto !important;
-      top: auto !important;
-      bottom: 18px !important;
+      top: 96px !important;
+      bottom: auto !important;
       transform: translateX(-50%) !important;
       border-radius: 999px !important;
     }
