@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Steel Craft ERP</title>
   <style>
-    /* Floating dock trigger follows the selected navigation layout. */
-    .erp-topbar .dock-trigger {
+    /* The actual trigger is rendered as .dock-trigger outside the header. Target it directly. */
+    .dashboard > .dock-trigger {
       position: fixed !important;
       z-index: 39 !important;
       margin: 0 !important;
@@ -20,23 +20,23 @@
     .layout-right-sidebar .erp-topbar {
       padding-right: 78px !important;
     }
-    .layout-dock-left .erp-topbar .dock-trigger,
-    .layout-left-sidebar .erp-topbar .dock-trigger {
+    .layout-dock-left > .dock-trigger,
+    .layout-left-sidebar > .dock-trigger {
       left: 18px !important;
       right: auto !important;
       top: 28px !important;
       bottom: auto !important;
       transform: none !important;
     }
-    .layout-dock-right .erp-topbar .dock-trigger,
-    .layout-right-sidebar .erp-topbar .dock-trigger {
+    .layout-dock-right > .dock-trigger,
+    .layout-right-sidebar > .dock-trigger {
       right: 18px !important;
       left: auto !important;
       top: 28px !important;
       bottom: auto !important;
       transform: none !important;
     }
-    .layout-bottom-dock .erp-topbar .dock-trigger {
+    .layout-bottom-dock > .dock-trigger {
       left: 50% !important;
       right: auto !important;
       top: auto !important;
@@ -44,7 +44,7 @@
       transform: translateX(-50%) !important;
       border-radius: 999px !important;
     }
-    .layout-command-center .erp-topbar .dock-trigger {
+    .layout-command-center > .dock-trigger {
       left: 50% !important;
       right: auto !important;
       top: 28px !important;
@@ -52,10 +52,7 @@
       transform: translateX(-50%) !important;
       border-radius: 999px !important;
     }
-    .layout-top-rail .erp-topbar .dock-trigger {
-      position: static !important;
-      transform: none !important;
-    }
+    .layout-top-rail > .dock-trigger { display: none !important; }
     .portal-permission-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
