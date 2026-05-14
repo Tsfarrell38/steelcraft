@@ -3,36 +3,11 @@ import { createRoot } from 'react-dom/client';
 import './styles.css';
 
 const topPortals = [
-  {
-    id: 'admin',
-    title: 'Admin Portal',
-    audience: 'Owner / system admin',
-    purpose: 'Users, roles, permissions, database status, integrations, schema setup, audit controls, and global settings.'
-  },
-  {
-    id: 'employee',
-    title: 'Employee Portal',
-    audience: 'Internal team',
-    purpose: 'Internal operations for sales, estimating, projects, planning, HR, accounts, contacts, and erection schedule.'
-  },
-  {
-    id: 'accounting',
-    title: 'Accounting Portal',
-    audience: 'Accounting / finance team',
-    purpose: 'Full financial control center for billing, insurance, POs, invoices, SOV, payments, AR, AP, and reporting.'
-  },
-  {
-    id: 'vendor',
-    title: 'Vendor Portal',
-    audience: 'Outside vendors',
-    purpose: 'External vendor access for assigned project packages, PO visibility, due dates, uploads, and packet status.'
-  },
-  {
-    id: 'customer',
-    title: 'Customer Portal',
-    audience: 'Outside customers',
-    purpose: 'External customer access for approved project status, documents, quotes, contracts, change orders, payments, and approvals.'
-  }
+  ['admin', 'Admin', 'System control center', 'Users, roles, permissions, database status, integrations, schema setup, audit controls, and global settings.'],
+  ['employee', 'Employee Portal', 'Internal operations', 'Sales, estimating, projects, planning, HR, accounts, contacts, and erection schedule.'],
+  ['accounting', 'Accounting Portal', 'Financial control', 'Billing, insurance, POs, invoices, SOV, payments, AR, AP, and reporting.'],
+  ['vendor', 'Vendor Portal', 'Outside vendors', 'Assigned project packages, PO visibility, due dates, uploads, and packet status.'],
+  ['customer', 'Customer Portal', 'Outside customers', 'Approved project status, documents, quotes, contracts, change orders, payments, and approvals.']
 ];
 
 const employeeModules = [
@@ -61,14 +36,9 @@ const brandDefaults = {
   platformName: 'Operations Portal',
   logoText: 'Steel Craft',
   logoSubtext: 'Operations Portal',
-  heroTitle: 'Operations Portal',
-  heroKicker: 'Proudly American Made',
-  heroCopy: 'A branded operations gateway for admin, employee, accounting, vendor, and customer access.',
-  utilityLinks: 'Literature, Contact, Portal Login',
-  navLinks: 'Products, Why Steel, Resources, Locations, Support',
-  primaryColor: '#172033',
-  accentColor: '#b22b2f',
-  softAccentColor: '#f6ecec',
+  primaryColor: '#0f1014',
+  accentColor: '#9f3d42',
+  panelColor: '#151519',
   loadSteelCraftData: false,
   loadMondayBoards: false,
   loadExcelWorkbook: false
@@ -86,96 +56,83 @@ function saveBrand(next) {
   localStorage.setItem('steelcraft_brand_controls_v1', JSON.stringify(next));
 }
 
-function Badge({ children }) {
-  return <span className="badge">{children}</span>;
+function brandStyle(brand) {
+  return {
+    '--brand-primary': brand.primaryColor,
+    '--brand-accent': brand.accentColor,
+    '--brand-panel': brand.panelColor
+  };
 }
 
-function Card({ children, className = '' }) {
-  return <section className={`card ${className}`}>{children}</section>;
-}
-
-function BrandHeader({ brand, compact = false }) {
-  const utilityLinks = String(brand.utilityLinks || '').split(',').map((item) => item.trim()).filter(Boolean);
-  const navLinks = String(brand.navLinks || '').split(',').map((item) => item.trim()).filter(Boolean);
+function BrandMark({ brand }) {
   return (
-    <header className={`brand-header ${compact ? 'compact' : ''}`}>
-      <div className="utility-bar">
-        <div>{utilityLinks.map((link) => <span key={link}>{link}</span>)}</div>
-        <strong>{brand.heroKicker}</strong>
-      </div>
-      <div className="brand-nav">
-        <div className="brand-lockup">
-          <div className="brand-mark">SC</div>
-          <div><strong>{brand.logoText}</strong><small>{brand.logoSubtext}</small></div>
-        </div>
-        <nav>{navLinks.map((link) => <span key={link}>{link}</span>)}</nav>
-      </div>
-    </header>
+    <div className="brand">
+      <div className="mark"><span>S</span><span className="beam">C</span><span>B</span></div>
+      <div><strong>{brand.logoText}</strong><small>{brand.logoSubtext}</small></div>
+    </div>
   );
 }
 
-function PortalCard({ portal, activePortal, setActivePortal }) {
+function IconBox({ children }) {
+  return <div className="icon-box">{children}</div>;
+}
+
+function StatusCard({ label, value, detail }) {
   return (
-    <article className="portal-card">
-      <Badge>{portal.audience}</Badge>
-      <h3>{portal.title}</h3>
-      <p>{portal.purpose}</p>
-      <button onClick={() => setActivePortal(portal.id)} className={activePortal === portal.id ? 'active' : ''}>
-        Open {portal.title}
-      </button>
+    <article className="stat-card panel">
+      <IconBox>▣</IconBox>
+      <strong>{value}</strong>
+      <span>{label}</span>
+      <small>{detail}</small>
     </article>
   );
 }
 
-function AuthLanding({ onEnter, brand }) {
+function Shell({ brand, activePortal, setActivePortal, children }) {
   return (
-    <main className="site-shell" style={brandStyle(brand)}>
-      <BrandHeader brand={brand} />
-      <section className="site-hero">
-        <div className="hero-copy">
-          <Badge>Authentication page</Badge>
-          <p className="kicker">{brand.heroKicker}</p>
-          <h1>{brand.logoText} {brand.heroTitle}</h1>
-          <p>{brand.heroCopy}</p>
-          <button className="primary" onClick={() => onEnter('employee')}>Enter portal preview</button>
+    <main className="dashboard" style={brandStyle(brand)}>
+      <aside className="side panel">
+        <BrandMark brand={brand} />
+        <p className="side-label">{brand.tenantName}</p>
+        {topPortals.map(([id, title]) => (
+          <button key={id} className={id === activePortal ? 'active' : ''} onClick={() => setActivePortal(id)}>
+            <span className="nav-dot">▦</span>{title}
+          </button>
+        ))}
+        <div className="side-footer">
+          <span>White-label controls</span>
+          <a href="/brand">/brand</a>
         </div>
-        <aside className="hero-panel steel-panel">
-          <span>Role-based routing</span>
-          <strong>Five portals</strong>
-          <small>Admin · Employee · Accounting · Vendor · Customer</small>
-        </aside>
-      </section>
-      <section className="portal-grid">
-        {topPortals.map((portal) => <PortalCard key={portal.id} portal={portal} activePortal="" setActivePortal={() => onEnter(portal.id)} />)}
-      </section>
+      </aside>
+      <section className="workspace">{children}</section>
     </main>
   );
 }
 
-function PortalTabs({ activePortal, setActivePortal }) {
+function WorkspaceHeader({ eyebrow, title, description, badge = 'Backend connected' }) {
   return (
-    <nav className="portal-tabs">
-      {topPortals.map((portal) => (
-        <button key={portal.id} className={activePortal === portal.id ? 'active' : ''} onClick={() => setActivePortal(portal.id)}>
-          {portal.title}
-        </button>
-      ))}
-    </nav>
+    <header className="workspace-header panel">
+      <div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p>{description}</p></div>
+      <div className="live-badge">♢ {badge}</div>
+    </header>
   );
 }
 
 function AdminPortal() {
   return (
-    <Card>
-      <Badge>Admin Portal</Badge>
-      <h2>System control center</h2>
-      <p>Admin owns users, roles, permissions, integrations, schema setup, audit logs, database status, and global settings.</p>
-      <div className="module-grid">
-        {['User management', 'Role and portal access', 'Database/schema setup', 'Monday integration', 'File storage', 'Audit logs', 'Workflow rules', 'Tenant settings'].map((item) => (
-          <article className="module" key={item}><h3>{item}</h3><p>Admin-only configuration area.</p></article>
-        ))}
+    <>
+      <WorkspaceHeader eyebrow="Steel Craft admin" title="Admin Panel" description="System controls for users, roles, permissions, database setup, integrations, workflow mapping, and portal foundation." />
+      <div className="stats-grid">
+        <StatusCard label="Database" value="connected" detail="Ready" />
+        <StatusCard label="Portal Shell" value="5 portals" detail="Admin, Employee, Accounting, Vendor, Customer" />
+        <StatusCard label="Brand Controls" value="/brand" detail="Hidden operator route" />
+        <StatusCard label="Storage" value="not set" detail="Needs attention" />
       </div>
-    </Card>
+      <div className="workspace-grid">
+        <article className="feature panel large"><p className="eyebrow">Admin controls</p><h2>System management</h2><p>Admin stays separate from the employee workspace. This is the owner/operator control panel for platform setup.</p><div className="pill-row"><span>User management</span><span>Role access</span><span>Schema setup</span><span>Integrations</span></div></article>
+        <RecordList title="Admin build lanes" rows={[['Users and roles', 'Portal and module access by role', 'Core'], ['Database setup', 'Schema status and migrations', 'Core'], ['Integrations', 'Monday, storage, email, e-signature', 'Next'], ['Tenant controls', 'White-label settings and clean templates', '/brand']]} />
+      </div>
+    </>
   );
 }
 
@@ -184,46 +141,56 @@ function EmployeePortal() {
   const current = employeeModules.find(([id]) => id === activeModule) || employeeModules[0];
   return (
     <>
-      <Card>
-        <Badge>Employee Portal</Badge>
-        <h2>Internal operating portal</h2>
-        <p>Sales & Estimating, Project Portal, Planning, HR, Accounts, Contacts, and Erection Schedule live here. Financial control lives in Accounting.</p>
-      </Card>
-      <nav className="module-tabs">
-        {employeeModules.map(([id, title]) => <button key={id} className={activeModule === id ? 'active' : ''} onClick={() => setActiveModule(id)}>{title}</button>)}
-      </nav>
-      <Card>
-        <Badge>Employee module</Badge>
-        <h2>{current[1]}</h2>
-        <p>{current[2]}</p>
-        {activeModule === 'hr' && <div className="notice">HR is for salary employees only: PTO, handbook, HR support, onboarding, and training. No time clock.</div>}
-        {activeModule === 'planning' && <div className="notice">Planning is internal job readiness. Billing, insurance, and POs have moved to Accounting.</div>}
-      </Card>
+      <WorkspaceHeader eyebrow="Internal operations" title="Employee Portal" description="Internal Steel Craft workspace for sales, estimating, projects, planning, HR, accounts, contacts, and erection schedule." />
+      <div className="tab-row">{employeeModules.map(([id, title]) => <button key={id} className={activeModule === id ? 'active' : ''} onClick={() => setActiveModule(id)}>{title}</button>)}</div>
+      <div className="workspace-grid">
+        <article className="feature panel large"><p className="eyebrow">Employee module</p><h2>{current[1]}</h2><p>{current[2]}</p>{activeModule === 'hr' && <div className="notice">No time clock. HR is for salary employees: PTO, handbook, support, onboarding, and training.</div>}{activeModule === 'planning' && <div className="notice">Planning is job readiness only. Billing, insurance, and POs live in Accounting.</div>}</article>
+        <RecordList title="Employee portal map" rows={employeeModules.map(([, title, detail]) => [title, detail, 'Employee'])} />
+      </div>
     </>
   );
 }
 
 function AccountingPortal() {
   return (
-    <Card>
-      <Badge>Accounting Portal</Badge>
-      <h2>Full financial control center</h2>
-      <p>Accounting is a top-level portal. Billing, insurance, POs, AR, AP, SOV, change order billing, and financial reporting live here.</p>
-      <div className="module-grid accounting-grid">
-        {accountingModules.map(([title, detail]) => <article className="module" key={title}><h3>{title}</h3><p>{detail}</p></article>)}
+    <>
+      <WorkspaceHeader eyebrow="Financial control" title="Accounting Portal" description="Full accounting center for billing, insurance, POs, AR, AP, SOV, change order billing, project financial health, and reporting." />
+      <div className="stats-grid">
+        <StatusCard label="Billing" value="ready" detail="Invoices, draws, deposits" />
+        <StatusCard label="Purchase Orders" value="inside" detail="Accounting portal" />
+        <StatusCard label="Insurance" value="tracked" detail="COIs and expirations" />
+        <StatusCard label="Reports" value="planned" detail="Financial exports" />
       </div>
-    </Card>
+      <RecordList title="Accounting modules" rows={accountingModules.map(([title, detail]) => [title, detail, 'Accounting'])} />
+    </>
   );
 }
 
 function ExternalPortal({ type }) {
   const vendor = type === 'Vendor';
   return (
-    <Card>
-      <Badge>{type} Portal</Badge>
-      <h2>{type} access stays outside Employee</h2>
-      <p>{vendor ? 'Vendors only see assigned project packages, relevant PO visibility, due dates, upload slots, and vendor packet status.' : 'Customers only see approved project status, customer-facing documents, quotes, contracts, change orders, payments, approvals, and uploads.'}</p>
-    </Card>
+    <>
+      <WorkspaceHeader eyebrow={`${type} access`} title={`${type} Portal`} description={vendor ? 'External vendor access for assigned project packages, relevant PO visibility, due dates, upload slots, and packet status.' : 'External customer access for approved project status, documents, quotes, contracts, change orders, payments, approvals, and uploads.'} badge="External access" />
+      <div className="workspace-grid"><article className="feature panel large"><p className="eyebrow">Outside portal</p><h2>{type} workspace</h2><p>{vendor ? 'Vendors stay outside the employee portal and only see assigned package information.' : 'Customers stay outside the employee portal and only see approved customer-facing information.'}</p></article><RecordList title="Visible areas" rows={vendor ? [['Assigned packages', 'Project/vendor packet details', 'Vendor'], ['PO visibility', 'Vendor-facing PO details only', 'Limited'], ['Uploads', 'Submittals, packets, and documents', 'Vendor']] : [['Project status', 'Approved customer-facing status', 'Customer'], ['Documents', 'Approved documents and contracts', 'Customer'], ['Approvals', 'Customer approvals and uploads', 'Customer']]} /></div>
+    </>
+  );
+}
+
+function RecordList({ title, rows }) {
+  return <article className="feature panel"><h2>{title}</h2><div className="data-rows">{rows.map(([name, detail, status]) => <div className="data-row" key={name}><div><strong>{name}</strong><span>{detail}</span></div><b>{status}</b></div>)}</div></article>;
+}
+
+function AuthLanding({ brand, onEnter }) {
+  return (
+    <main className="landing-dark" style={brandStyle(brand)}>
+      <section className="landing-card panel">
+        <BrandMark brand={brand} />
+        <p className="eyebrow">Authentication page</p>
+        <h1>{brand.logoText} Operations Portal</h1>
+        <p>Role-based gateway into five portals: Admin, Employee, Accounting, Vendor, and Customer.</p>
+        <div className="portal-tiles">{topPortals.map(([id, title, audience, purpose]) => <article key={id} className="portal-tile"><p>{audience}</p><h3>{title}</h3><span>{purpose}</span><button onClick={() => onEnter(id)}>Open {title}</button></article>)}</div>
+      </section>
+    </main>
   );
 }
 
@@ -239,72 +206,35 @@ function BrandControls() {
     saveBrand(brandDefaults);
   }
   return (
-    <main className="site-shell" style={brandStyle(brand)}>
-      <BrandHeader brand={brand} compact />
-      <section className="site-hero brand-hero">
-        <div className="hero-copy"><Badge>Hidden /brand controls</Badge><h1>White-label brand controls</h1><p>Control the customer-facing look without exposing these controls in normal portal navigation.</p></div>
-        <aside className="hero-panel"><span>Tenant preview</span><strong>{brand.tenantName}</strong><small>{brand.platformName}</small></aside>
+    <main className="dashboard brand-controls" style={brandStyle(brand)}>
+      <section className="workspace solo">
+        <WorkspaceHeader eyebrow="Hidden /brand controls" title="White-label Brand Controls" description="Operator-only controls for brand appearance and clean customer templates. This route is not linked from normal customer navigation." badge="Hidden route" />
+        <div className="workspace-grid">
+          <article className="feature panel"><h2>Main brand controls</h2><label>Tenant name<input value={brand.tenantName} onChange={(e) => update('tenantName', e.target.value)} /></label><label>Logo text<input value={brand.logoText} onChange={(e) => update('logoText', e.target.value)} /></label><label>Logo subtext<input value={brand.logoSubtext} onChange={(e) => update('logoSubtext', e.target.value)} /></label><label>Platform name<input value={brand.platformName} onChange={(e) => update('platformName', e.target.value)} /></label></article>
+          <article className="feature panel"><h2>Theme and data rules</h2><label>Primary color<input type="color" value={brand.primaryColor} onChange={(e) => update('primaryColor', e.target.value)} /></label><label>Accent color<input type="color" value={brand.accentColor} onChange={(e) => update('accentColor', e.target.value)} /></label><label>Panel color<input type="color" value={brand.panelColor} onChange={(e) => update('panelColor', e.target.value)} /></label><label className="check-row"><input type="checkbox" checked={brand.loadSteelCraftData} onChange={(e) => update('loadSteelCraftData', e.target.checked)} /> Load Steel Craft records</label><label className="check-row"><input type="checkbox" checked={brand.loadMondayBoards} onChange={(e) => update('loadMondayBoards', e.target.checked)} /> Load Steel Craft Monday boards</label><label className="check-row"><input type="checkbox" checked={brand.loadExcelWorkbook} onChange={(e) => update('loadExcelWorkbook', e.target.checked)} /> Load Steel Craft Excel workbook data</label><div className="notice">Default for new customers: structure only, no Steel Craft data.</div><button onClick={reset}>Reset Steel Craft defaults</button></article>
+        </div>
       </section>
-      <div className="two-column">
-        <Card>
-          <h2>Main brand controls</h2>
-          <label>Tenant name<input value={brand.tenantName} onChange={(e) => update('tenantName', e.target.value)} /></label>
-          <label>Platform name<input value={brand.platformName} onChange={(e) => update('platformName', e.target.value)} /></label>
-          <label>Logo text<input value={brand.logoText} onChange={(e) => update('logoText', e.target.value)} /></label>
-          <label>Logo subtext<input value={brand.logoSubtext} onChange={(e) => update('logoSubtext', e.target.value)} /></label>
-          <label>Hero title<input value={brand.heroTitle} onChange={(e) => update('heroTitle', e.target.value)} /></label>
-          <label>Hero kicker<input value={brand.heroKicker} onChange={(e) => update('heroKicker', e.target.value)} /></label>
-          <label>Hero copy<input value={brand.heroCopy} onChange={(e) => update('heroCopy', e.target.value)} /></label>
-        </Card>
-        <Card>
-          <h2>Theme and data rules</h2>
-          <label>Primary color<input type="color" value={brand.primaryColor} onChange={(e) => update('primaryColor', e.target.value)} /></label>
-          <label>Accent color<input type="color" value={brand.accentColor} onChange={(e) => update('accentColor', e.target.value)} /></label>
-          <label>Soft accent<input type="color" value={brand.softAccentColor} onChange={(e) => update('softAccentColor', e.target.value)} /></label>
-          <label>Utility links<input value={brand.utilityLinks} onChange={(e) => update('utilityLinks', e.target.value)} /></label>
-          <label>Navigation links<input value={brand.navLinks} onChange={(e) => update('navLinks', e.target.value)} /></label>
-          <label className="check-row"><input type="checkbox" checked={brand.loadSteelCraftData} onChange={(e) => update('loadSteelCraftData', e.target.checked)} /> Load Steel Craft records</label>
-          <label className="check-row"><input type="checkbox" checked={brand.loadMondayBoards} onChange={(e) => update('loadMondayBoards', e.target.checked)} /> Load Steel Craft Monday boards</label>
-          <label className="check-row"><input type="checkbox" checked={brand.loadExcelWorkbook} onChange={(e) => update('loadExcelWorkbook', e.target.checked)} /> Load Steel Craft Excel workbook data</label>
-          <div className="notice">Default for new customers: five-portal structure only. No Steel Craft data.</div>
-          <button className="primary" onClick={reset}>Reset to Steel Craft-style defaults</button>
-        </Card>
-      </div>
     </main>
   );
-}
-
-function brandStyle(brand) {
-  return {
-    '--brand-primary': brand.primaryColor,
-    '--brand-accent': brand.accentColor,
-    '--brand-soft': brand.softAccentColor
-  };
 }
 
 function App() {
   const isBrandRoute = window.location.pathname.replace(/\/$/, '') === '/brand';
   const [authenticated, setAuthenticated] = useState(false);
-  const [activePortal, setActivePortal] = useState('employee');
+  const [activePortal, setActivePortal] = useState('admin');
   const brand = useMemo(loadBrand, []);
 
   if (isBrandRoute) return <BrandControls />;
   if (!authenticated) return <AuthLanding brand={brand} onEnter={(portalId) => { setActivePortal(portalId); setAuthenticated(true); }} />;
 
   return (
-    <main className="site-shell" style={brandStyle(brand)}>
-      <BrandHeader brand={brand} />
-      <section className="site-hero dashboard-hero">
-        <div className="hero-copy"><Badge>Five-portal architecture</Badge><h1>{brand.logoText} Portal Gateway</h1><p>Authenticated entry into five portals: Admin, Employee, Accounting, Vendor, and Customer.</p></div>
-        <aside className="hero-panel"><span>Signed in view</span><strong>{topPortals.find((portal) => portal.id === activePortal)?.title}</strong><small>Brand-driven staging shell</small></aside>
-      </section>
-      <PortalTabs activePortal={activePortal} setActivePortal={setActivePortal} />
+    <Shell brand={brand} activePortal={activePortal} setActivePortal={setActivePortal}>
       {activePortal === 'admin' && <AdminPortal />}
       {activePortal === 'employee' && <EmployeePortal />}
       {activePortal === 'accounting' && <AccountingPortal />}
       {activePortal === 'vendor' && <ExternalPortal type="Vendor" />}
       {activePortal === 'customer' && <ExternalPortal type="Customer" />}
-    </main>
+    </Shell>
   );
 }
 
