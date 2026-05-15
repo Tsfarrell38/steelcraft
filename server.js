@@ -8,6 +8,7 @@ import { ensureEstimatingSchema } from './server/estimatingSchema.js';
 import { ensureHrSchema } from './server/hrSchema.js';
 import { ensureQuoteWorkbookSchema, importQuoteWorkbook } from './server/quoteWorkbook.js';
 import { ensureQuoteTemplateSchema, createTemplateFromWorkbook, listTemplates, getTemplate, updateTemplateVersion, upsertTemplateOverride } from './server/quoteTemplate.js';
+import { mapMondayBoardsToSteelCraftWorkflow } from './server/steelcraftWorkflow.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -98,6 +99,20 @@ async function ensureSchema() {
       raw jsonb not null,
       pulled_at timestamptz not null default now()
     );
+    create table if not exists steelcraft_workflow_sources (
+      id bigserial primary key,
+      source text not null default 'monday_api',
+      source_board_id text,
+      internal_name text not null,
+      classification text,
+      destination jsonb not null default '{}'::jsonb,
+      field_map jsonb not null default '[]'::jsonb,
+      workflow_map jsonb not null default '{}'::jsonb,
+      verification_checklist jsonb not null default '[]'::jsonb,
+      raw jsonb not null default '{}'::jsonb,
+      pulled_at timestamptz not null default now(),
+      unique (source, source_board_id)
+    );
     create table if not exists companies (
       id bigserial primary key,
       source text default 'manual',
@@ -166,6 +181,24 @@ async function syncMondayBoards() {
   return data.boards;
 }
 
+async function auditSteelCraftWorkflow({ save = false } = {}) {
+  await ensureSchema();
+  const data = await pullMondayBoards();
+  const mapped = mapMondayBoardsToSteelCraftWorkflow(data.boards);
+  if (save) {
+    for (const flow of mapped.workflows) {
+      await pool.query(
+        `insert into steelcraft_workflow_sources (source, source_board_id, internal_name, classification, destination, field_map, workflow_map, verification_checklist, raw, pulled_at)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,now())
+         on conflict (source, source_board_id) do update set internal_name = excluded.internal_name, classification = excluded.classification, destination = excluded.destination, field_map = excluded.field_map, workflow_map = excluded.workflow_map, verification_checklist = excluded.verification_checklist, raw = excluded.raw, pulled_at = now()`,
+        ['monday_api', flow.sourceBoardId, flow.internalName, flow.classification, flow.destination, flow.fieldMap, flow.workflow, flow.verificationChecklist, flow]
+      );
+    }
+    await pool.query(`insert into portal_activity_logs (actor, action, entity_type, metadata) values ($1,$2,$3,$4)`, ['system', 'steelcraft_workflow_audit_saved', 'workflow_source', { mappedWorkflowCount: mapped.mappedWorkflowCount }]);
+  }
+  return mapped;
+}
+
 app.get('/api/health', async (req, res) => {
   const checks = { app: 'ok', database: 'not_configured', monday: process.env.MONDAY_API_TOKEN ? 'configured' : 'not_configured', spaces: process.env.DO_SPACES_BUCKET ? 'configured' : 'not_configured' };
   try { if (pool) { await pool.query('select 1 as ok'); checks.database = 'connected'; } } catch (error) { checks.database = `error: ${error.message}`; }
@@ -175,8 +208,8 @@ app.get('/api/health', async (req, res) => {
 app.post('/api/setup/schema', async (req, res, next) => {
   try {
     await ensureSchema();
-    await pool.query(`insert into portal_activity_logs (actor, action, entity_type, metadata) values ($1, $2, $3, $4)`, ['system', 'schema_initialized', 'database', { estimating: true, quoteWorkbooks: true, quoteTemplates: true, hr: true }]);
-    res.json({ ok: true, message: 'Steel Craft schema initialized, including editable quote templates.' });
+    await pool.query(`insert into portal_activity_logs (actor, action, entity_type, metadata) values ($1, $2, $3, $4)`, ['system', 'schema_initialized', 'database', { estimating: true, quoteWorkbooks: true, quoteTemplates: true, hr: true, steelcraftWorkflow: true }]);
+    res.json({ ok: true, message: 'Steel Craft schema initialized, including editable quote templates and Steel Craft workflow mapping.' });
   } catch (error) { next(error); }
 });
 
@@ -187,7 +220,7 @@ app.get('/api/estimating/schema/status', async (req, res, next) => {
     const tables = await db.query(`
       select table_name from information_schema.tables
       where table_schema = 'public'
-        and table_name in ('estimates', 'estimate_cost_lines', 'estimate_deposit_schedule', 'quotation_versions', 'quotation_lines', 'project_checklist_items', 'invoices', 'invoice_lines', 'schedule_of_values', 'change_orders', 'quote_workbooks', 'quote_workbook_sheets', 'quote_templates', 'quote_template_versions', 'quote_template_overrides')
+        and table_name in ('estimates', 'estimate_cost_lines', 'estimate_deposit_schedule', 'quotation_versions', 'quotation_lines', 'project_checklist_items', 'invoices', 'invoice_lines', 'schedule_of_values', 'change_orders', 'quote_workbooks', 'quote_workbook_sheets', 'quote_templates', 'quote_template_versions', 'quote_template_overrides', 'steelcraft_workflow_sources')
       order by table_name
     `);
     res.json({ ok: true, tables: tables.rows.map((row) => row.table_name) });
@@ -195,31 +228,15 @@ app.get('/api/estimating/schema/status', async (req, res, next) => {
 });
 
 app.post('/api/estimating/quote-workbooks', upload.single('workbook'), async (req, res, next) => {
-  try {
-    await ensureSchema();
-    const db = requireDatabase();
-    const result = await importQuoteWorkbook(db, req.file, req.body.actor || 'estimating');
-    res.json({ ok: true, ...result });
-  } catch (error) { next(error); }
+  try { await ensureSchema(); const result = await importQuoteWorkbook(requireDatabase(), req.file, req.body.actor || 'estimating'); res.json({ ok: true, ...result }); } catch (error) { next(error); }
 });
-
 app.get('/api/estimating/quote-workbooks', async (req, res, next) => {
   try {
     await ensureSchema();
-    const db = requireDatabase();
-    const workbooks = await db.query(`
-      select qw.id, qw.original_filename, qw.file_size, qw.sheet_count, qw.detected_total, qw.status, qw.estimate_id, qw.created_at,
-             e.project_name, qv.id as quotation_id, qv.total as quote_total
-      from quote_workbooks qw
-      left join estimates e on e.id = qw.estimate_id
-      left join quotation_versions qv on qv.estimate_id = e.id
-      order by qw.created_at desc
-      limit 20
-    `);
+    const workbooks = await requireDatabase().query(`select qw.id, qw.original_filename, qw.file_size, qw.sheet_count, qw.detected_total, qw.status, qw.estimate_id, qw.created_at, e.project_name, qv.id as quotation_id, qv.total as quote_total from quote_workbooks qw left join estimates e on e.id = qw.estimate_id left join quotation_versions qv on qv.estimate_id = e.id order by qw.created_at desc limit 20`);
     res.json({ ok: true, workbooks: workbooks.rows });
   } catch (error) { next(error); }
 });
-
 app.get('/api/estimating/quote-workbooks/:id', async (req, res, next) => {
   try {
     await ensureSchema();
@@ -234,71 +251,32 @@ app.get('/api/estimating/quote-workbooks/:id', async (req, res, next) => {
     res.json({ ok: true, workbook: workbook.rows[0], sheets: sheets.rows, fields: fields.rows, ranges: ranges.rows, formulas: formulas.rows, automations: automations.rows });
   } catch (error) { next(error); }
 });
-
-app.post('/api/estimating/quote-workbooks/:id/create-template', async (req, res, next) => {
-  try {
-    await ensureSchema();
-    const template = await createTemplateFromWorkbook(requireDatabase(), req.params.id, req.body.actor || 'estimating');
-    res.json({ ok: true, ...template });
-  } catch (error) { next(error); }
-});
-
-app.get('/api/estimating/quote-templates', async (req, res, next) => {
-  try {
-    await ensureSchema();
-    const templates = await listTemplates(requireDatabase());
-    res.json({ ok: true, templates });
-  } catch (error) { next(error); }
-});
-
-app.get('/api/estimating/quote-templates/:id', async (req, res, next) => {
-  try {
-    await ensureSchema();
-    const template = await getTemplate(requireDatabase(), req.params.id);
-    if (!template) return res.status(404).json({ ok: false, error: 'Quote template not found.' });
-    res.json({ ok: true, ...template });
-  } catch (error) { next(error); }
-});
-
-app.patch('/api/estimating/quote-template-versions/:id', async (req, res, next) => {
-  try {
-    await ensureSchema();
-    const version = await updateTemplateVersion(requireDatabase(), req.params.id, req.body, req.body.actor || 'estimating');
-    res.json({ ok: true, version });
-  } catch (error) { next(error); }
-});
-
-app.put('/api/estimating/quote-template-versions/:id/overrides', async (req, res, next) => {
-  try {
-    await ensureSchema();
-    const override = await upsertTemplateOverride(requireDatabase(), req.params.id, req.body, req.body.actor || 'estimating');
-    res.json({ ok: true, override });
-  } catch (error) { next(error); }
-});
+app.post('/api/estimating/quote-workbooks/:id/create-template', async (req, res, next) => { try { await ensureSchema(); const template = await createTemplateFromWorkbook(requireDatabase(), req.params.id, req.body.actor || 'estimating'); res.json({ ok: true, ...template }); } catch (error) { next(error); } });
+app.get('/api/estimating/quote-templates', async (req, res, next) => { try { await ensureSchema(); const templates = await listTemplates(requireDatabase()); res.json({ ok: true, templates }); } catch (error) { next(error); } });
+app.get('/api/estimating/quote-templates/:id', async (req, res, next) => { try { await ensureSchema(); const template = await getTemplate(requireDatabase(), req.params.id); if (!template) return res.status(404).json({ ok: false, error: 'Quote template not found.' }); res.json({ ok: true, ...template }); } catch (error) { next(error); } });
+app.patch('/api/estimating/quote-template-versions/:id', async (req, res, next) => { try { await ensureSchema(); const version = await updateTemplateVersion(requireDatabase(), req.params.id, req.body, req.body.actor || 'estimating'); res.json({ ok: true, version }); } catch (error) { next(error); } });
+app.put('/api/estimating/quote-template-versions/:id/overrides', async (req, res, next) => { try { await ensureSchema(); const override = await upsertTemplateOverride(requireDatabase(), req.params.id, req.body, req.body.actor || 'estimating'); res.json({ ok: true, override }); } catch (error) { next(error); } });
 
 app.get('/api/hr/schema/status', async (req, res, next) => {
   try {
     await ensureSchema();
-    const db = requireDatabase();
-    const tables = await db.query(`
-      select table_name from information_schema.tables
-      where table_schema = 'public'
-        and table_name in ('employees', 'pto_policies', 'pto_balances', 'pto_requests', 'company_holidays', 'handbook_documents', 'handbook_acknowledgements', 'onboarding_checklists', 'onboarding_tasks', 'training_courses', 'training_lessons', 'employee_training_assignments')
-      order by table_name
-    `);
+    const tables = await requireDatabase().query(`select table_name from information_schema.tables where table_schema = 'public' and table_name in ('employees', 'pto_policies', 'pto_balances', 'pto_requests', 'company_holidays', 'handbook_documents', 'handbook_acknowledgements', 'onboarding_checklists', 'onboarding_tasks', 'training_courses', 'training_lessons', 'employee_training_assignments') order by table_name`);
     res.json({ ok: true, tables: tables.rows.map((row) => row.table_name) });
   } catch (error) { next(error); }
 });
 
 app.get('/api/monday/boards', async (req, res, next) => { try { const data = await pullMondayBoards(); res.json({ ok: true, boards: data.boards }); } catch (error) { next(error); } });
 app.post('/api/monday/sync-boards', async (req, res, next) => { try { const boards = await syncMondayBoards(); res.json({ ok: true, syncedBoards: boards.length }); } catch (error) { next(error); } });
-app.get('/api/monday/migration/start', async (req, res, next) => { try { const boards = await syncMondayBoards(); res.json({ ok: true, message: 'Monday migration pass 1 complete: board and column structure synced.', syncedBoards: boards.length, next: 'Review /api/monday/migration/summary, then choose board IDs for ERP portal migration.' }); } catch (error) { next(error); } });
+app.get('/api/monday/migration/start', async (req, res, next) => { try { const boards = await syncMondayBoards(); res.json({ ok: true, message: 'Monday source board and column structure synced. This is source data only; ERP UI should use Steel Craft workflow names.', syncedBoards: boards.length, next: 'Review /api/steelcraft/workflow/audit?save=true.' }); } catch (error) { next(error); } });
 app.get('/api/monday/migration/summary', async (req, res, next) => {
-  try {
-    await ensureSchema();
-    const boards = await pool.query(`select b.id, b.name, b.workspace_name, b.board_kind, b.state, b.pulled_at, count(c.id)::int as column_count from monday_boards b left join monday_columns c on c.board_id = b.id group by b.id order by lower(b.name)`);
-    res.json({ ok: true, boards: boards.rows });
-  } catch (error) { next(error); }
+  try { await ensureSchema(); const boards = await pool.query(`select b.id, b.name, b.workspace_name, b.board_kind, b.state, b.pulled_at, count(c.id)::int as column_count from monday_boards b left join monday_columns c on c.board_id = b.id group by b.id order by lower(b.name)`); res.json({ ok: true, boards: boards.rows }); } catch (error) { next(error); }
+});
+
+app.get('/api/steelcraft/workflow/audit', async (req, res, next) => {
+  try { const mapped = await auditSteelCraftWorkflow({ save: req.query.save === 'true' }); res.json(mapped); } catch (error) { next(error); }
+});
+app.get('/api/steelcraft/workflow/sources', async (req, res, next) => {
+  try { await ensureSchema(); const result = await requireDatabase().query(`select id, source, source_board_id, internal_name, classification, destination, workflow_map, verification_checklist, pulled_at from steelcraft_workflow_sources order by internal_name`); res.json({ ok: true, sources: result.rows }); } catch (error) { next(error); }
 });
 
 app.get('/api/spaces/status', async (req, res, next) => {
