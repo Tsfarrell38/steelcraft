@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
+import './brandGeometry.js';
 
 const portals = [
   ['admin','Admin','System control center','Users, roles, portal access, integrations, tenant controls, and global settings.'],
