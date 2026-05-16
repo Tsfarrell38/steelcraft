@@ -66,6 +66,7 @@ function stylePatch(name, requestedMode = mode()){
     buttonTextColor: '#ffffff'
   };
 }
+function currentBrand(){ return { ...stylePatch(styleName(), mode()), ...read() }; }
 
 function injectFixedCss(){
   if (document.getElementById('fixed-brand-room-css')) return;
@@ -82,9 +83,10 @@ function injectFixedCss(){
     .fixed-brand-room .eyebrow{color:#5aa2dc!important;letter-spacing:.16em!important;text-transform:uppercase!important;font-size:12px!important;font-weight:900!important;}
     .brand-section{display:grid!important;gap:16px!important;border:1px solid #2f4b68!important;border-radius:16px!important;background:#101b2b!important;padding:20px!important;}
     .logo-section{grid-template-columns:minmax(260px,.7fr) minmax(520px,1.3fr)!important;align-items:start!important;}
-    .logo-controls{display:grid!important;grid-template-columns:120px repeat(2,minmax(0,1fr))!important;gap:12px!important;align-items:end!important;}
-    .logo-preview{width:108px!important;height:108px!important;border:1px solid #5aa2dc!important;border-radius:16px!important;background:#07111f!important;display:grid!important;place-items:center!important;overflow:hidden!important;color:#f3f7ff!important;}
-    .logo-preview img{max-width:100%!important;max-height:100%!important;object-fit:contain!important;}
+    .logo-controls{display:grid!important;grid-template-columns:auto repeat(2,minmax(0,1fr))!important;gap:12px!important;align-items:end!important;}
+    .logo-preview{width:var(--brand-logo-preview-size,108px)!important;height:var(--brand-logo-preview-size,108px)!important;border:1px solid #5aa2dc!important;border-radius:16px!important;background:#07111f!important;display:grid!important;place-items:center!important;overflow:hidden!important;color:#f3f7ff!important;transition:width .15s ease,height .15s ease!important;}
+    .logo-preview img{width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;object-fit:contain!important;}
+    .logo-preview strong{font-size:calc(var(--brand-logo-preview-size,108px) * .28)!important;}
     .brand-field{display:grid!important;gap:7px!important;color:#f3f7ff!important;font-weight:800!important;margin:0!important;}
     .brand-field input,.brand-field select{background:#07111f!important;color:#f3f7ff!important;border:1px solid #2f4b68!important;border-radius:10px!important;padding:10px!important;width:100%!important;}
     .brand-field input[type=range]{accent-color:#5aa2dc!important;padding:0!important;}
@@ -96,11 +98,15 @@ function injectFixedCss(){
     .style-card.active,.style-card:hover{border-color:#5aa2dc!important;background:#132640!important;}
     .style-preview{height:64px!important;border-radius:12px!important;display:grid!important;grid-template-columns:1.4fr 1fr 1fr!important;gap:6px!important;padding:8px!important;background:#07111f!important;border:1px solid #2f4b68!important;}
     .style-preview i{display:block!important;border-radius:8px!important;background:var(--preview-accent,#5aa2dc)!important;}.style-preview i:first-child{grid-column:1/-1!important;}
-    .mode-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,180px))!important;gap:12px!important;}.palette-grid,.color-grid-simple{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:12px!important;}
-    .mode-button,.palette-button{border:1px solid #2f4b68!important;background:#0d1726!important;color:#f3f7ff!important;border-radius:12px!important;padding:13px!important;text-align:left!important;font-weight:900!important;white-space:normal!important;}
-    .mode-button.active,.mode-button:hover,.palette-button:hover{background:#16324c!important;border-color:#5aa2dc!important;}
+    .mode-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,180px))!important;gap:12px!important;}.palette-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:12px!important;}
+    .mode-button,.palette-button,.sample-color-button{border:1px solid #2f4b68!important;background:#0d1726!important;color:#f3f7ff!important;border-radius:12px!important;padding:13px!important;text-align:left!important;font-weight:900!important;white-space:normal!important;}
+    .mode-button.active,.mode-button:hover,.palette-button:hover,.sample-color-button:hover{background:#16324c!important;border-color:#5aa2dc!important;}
     .notice-fixed{border:1px solid #5aa2dc!important;background:#0a2238!important;border-radius:14px!important;padding:14px!important;color:#d8ecff!important;font-weight:800!important;line-height:1.45!important;}
-    @media(max-width:1100px){.style-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;}.logo-section,.logo-controls,.palette-grid,.color-grid-simple{grid-template-columns:1fr!important;}}
+    .sample-shell{border:1px solid var(--sample-border)!important;border-radius:var(--sample-radius)!important;background:var(--sample-bg)!important;padding:18px!important;color:var(--sample-text)!important;display:grid!important;gap:14px!important;}
+    .sample-top{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;border:1px solid var(--sample-border)!important;border-radius:calc(var(--sample-radius) * .75)!important;background:var(--sample-surface)!important;padding:12px!important;}
+    .sample-brand{display:flex!important;align-items:center!important;gap:10px!important;min-width:0!important;}.sample-logo{width:46px!important;height:46px!important;border:2px solid var(--sample-accent)!important;border-radius:10px!important;display:grid!important;place-items:center!important;font-weight:1000!important;overflow:hidden!important;}.sample-logo img{width:100%!important;height:100%!important;object-fit:contain!important;}.sample-title strong{display:block!important;color:var(--sample-text)!important;}.sample-title small{color:var(--sample-muted)!important;}
+    .sample-button{border:0!important;border-radius:var(--sample-button-radius)!important;background:var(--sample-accent)!important;color:#fff!important;padding:10px 14px!important;font-weight:900!important;}.sample-grid{display:grid!important;grid-template-columns:1.15fr .85fr!important;gap:14px!important;}.sample-card{border:1px solid var(--sample-border)!important;border-radius:var(--sample-radius)!important;background:var(--sample-card)!important;padding:16px!important;min-height:160px!important;}.sample-card h3{margin:0 0 10px!important;color:var(--sample-text)!important;font-size:24px!important;}.sample-line{height:12px!important;background:color-mix(in srgb,var(--sample-muted) 35%,transparent)!important;border-radius:999px!important;margin:10px 0!important;}.sample-pill{display:inline-flex!important;border-radius:999px!important;background:color-mix(in srgb,var(--sample-accent) 18%,transparent)!important;color:var(--sample-text)!important;border:1px solid var(--sample-accent)!important;padding:7px 10px!important;font-size:12px!important;font-weight:900!important;}.sample-color-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:12px!important;}.sample-color-button span{display:block!important;width:100%!important;height:26px!important;border-radius:8px!important;margin-bottom:8px!important;border:1px solid rgba(255,255,255,.25)!important;}
+    @media(max-width:1100px){.style-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;}.logo-section,.logo-controls,.palette-grid,.sample-grid,.sample-color-grid{grid-template-columns:1fr!important;}}
     @media(max-width:650px){.style-grid{grid-template-columns:1fr!important;}.mode-grid{grid-template-columns:1fr 1fr!important;}}
   `;
   document.head.appendChild(s);
@@ -132,20 +138,12 @@ function paletteButton(name, color){
   b.onclick = () => reload({ accentColor: color, buttonColor: color });
   return b;
 }
-function colorControl(label, key){
-  const brand = read();
-  const fallback = stylePatch(styleName(), mode())[key] || '#000000';
-  const wrap = document.createElement('label');
-  wrap.className = 'brand-field';
-  wrap.innerHTML = `<span>${label}</span><input type="color" value="${brand[key] || fallback}" />`;
-  wrap.querySelector('input').oninput = (e) => reload({ [key]: e.target.value, ...(key === 'accentColor' ? { buttonColor: e.target.value } : {}) });
-  return wrap;
-}
 function logoSection(){
   const brand = read();
   const section = document.createElement('section');
   section.className = 'brand-section logo-section';
   const size = Number(brand.logoSize || stylePatch(styleName(), mode()).logoSize || 64);
+  section.style.setProperty('--brand-logo-preview-size', `${size}px`);
   section.innerHTML = `
     <div><p class="eyebrow">Logo controls</p><h2>Logo room</h2><p>This area stays fixed. Logo size, shape, text, and upload stay available while you test UI/UX styles.</p></div>
     <div class="logo-controls">
@@ -155,13 +153,19 @@ function logoSection(){
       <label class="brand-field">Logo URL<input id="logoUrl" value="${brand.logoUrl || ''}" placeholder="https://..." /></label>
       <label class="brand-field">Logo shape<select id="logoShape"><option value="square">Square</option><option value="rounded">Rounded</option><option value="circle">Circle</option><option value="wide">Wide</option></select></label>
       <label class="brand-field">Upload logo<input id="logoUpload" type="file" accept="image/*" /></label>
-      <label class="brand-field" style="grid-column:1/-1">Logo size <b>${size}px</b><input id="logoSize" type="range" min="28" max="160" value="${size}" /></label>
+      <label class="brand-field" style="grid-column:1/-1">Logo size <b id="logoSizeValue">${size}px</b><input id="logoSize" type="range" min="28" max="160" value="${size}" /></label>
     </div>`;
   section.querySelector('#logoShape').value = brand.logoShape || 'square';
   section.querySelector('#logoText').onchange = e => reload({ logoText:e.target.value });
   section.querySelector('#logoSubtext').onchange = e => reload({ logoSubtext:e.target.value });
   section.querySelector('#logoUrl').onchange = e => reload({ logoUrl:e.target.value, logoMode:e.target.value ? 'image' : (brand.logoMode || 'initials') });
   section.querySelector('#logoShape').onchange = e => reload({ logoShape:e.target.value });
+  section.querySelector('#logoSize').oninput = e => {
+    const nextSize = Number(e.target.value);
+    section.style.setProperty('--brand-logo-preview-size', `${nextSize}px`);
+    section.querySelector('#logoSizeValue').textContent = `${nextSize}px`;
+    write({ logoSize: nextSize });
+  };
   section.querySelector('#logoSize').onchange = e => reload({ logoSize:Number(e.target.value) });
   section.querySelector('#logoUpload').onchange = e => {
     const file = e.target.files && e.target.files[0];
@@ -172,6 +176,44 @@ function logoSection(){
   };
   return section;
 }
+function sampleColorButton(label, key, color){
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'sample-color-button';
+  b.innerHTML = `<span style="background:${color}"></span><strong>${label}</strong><small>${color}</small>`;
+  b.onclick = () => reload({ [key]: color, ...(key === 'accentColor' ? { buttonColor: color } : {}) });
+  return b;
+}
+function uiuxSampleSection(){
+  const brand = currentBrand();
+  const style = styleName();
+  const radius = Number(brand.radius || 18);
+  const buttonRadius = Number(brand.buttonRadius || 12);
+  const logoText = brand.logoText || 'Steel Craft';
+  const activePalettes = palettes[style] || palettes.Industrial;
+  const section = document.createElement('section');
+  section.className = 'brand-section';
+  section.innerHTML = `
+    <div><p class="eyebrow">UI/UX sample</p><h2>${style} sample</h2><p>This sample uses the UI/UX style selected above. Use the buttons below to adjust the sample colors and apply them to the tenant brand.</p></div>
+    <div class="sample-shell" style="--sample-bg:${brand.pageBgColor};--sample-surface:${brand.surfaceColor};--sample-card:${brand.cardColor};--sample-text:${brand.textColor};--sample-muted:${brand.mutedTextColor};--sample-border:${brand.borderColor};--sample-accent:${brand.accentColor};--sample-radius:${radius}px;--sample-button-radius:${buttonRadius}px;">
+      <div class="sample-top">
+        <div class="sample-brand"><div class="sample-logo">${brand.logoUrl ? `<img src="${brand.logoUrl}" alt="Logo" />` : `<strong>${logoText.slice(0,2).toUpperCase()}</strong>`}</div><div class="sample-title"><strong>${logoText}</strong><small>${style} / ${mode()} mode</small></div></div>
+        <button class="sample-button" type="button">Primary action</button>
+      </div>
+      <div class="sample-grid">
+        <div class="sample-card"><span class="sample-pill">Portal bubble</span><h3>Accounting Dashboard</h3><div class="sample-line" style="width:82%"></div><div class="sample-line" style="width:58%"></div><button class="sample-button" type="button">Open workflow</button></div>
+        <div class="sample-card"><span class="sample-pill">Card sample</span><h3>AR / Customer Billing</h3><div class="sample-line" style="width:74%"></div><div class="sample-line" style="width:46%"></div></div>
+      </div>
+    </div>
+    <div><p class="eyebrow">Apply colors to sample</p><div class="sample-color-grid"></div></div>
+  `;
+  const grid = section.querySelector('.sample-color-grid');
+  activePalettes.forEach(([name, color]) => grid.appendChild(sampleColorButton(name, 'accentColor', color)));
+  grid.appendChild(sampleColorButton('Dark card', 'cardColor', mode() === 'light' ? '#ffffff' : '#121722'));
+  grid.appendChild(sampleColorButton('Soft surface', 'surfaceColor', mode() === 'light' ? '#ffffff' : '#11141c'));
+  grid.appendChild(sampleColorButton('Strong border', 'borderColor', mode() === 'light' ? '#d7dee8' : '#2d3748'));
+  return section;
+}
 function inject(){
   if(location.pathname.replace(/\/$/,'') !== '/brand') return;
   injectFixedCss();
@@ -180,7 +222,7 @@ function inject(){
 
   const panel = document.createElement('article');
   panel.className = 'feature panel fixed-brand-room';
-  panel.innerHTML = `<div><p class="eyebrow">Stable Brand Room</p><h2>Pick and preview the tenant UI/UX</h2><p>This room is hard-coded so it does not morph while testing styles. Nothing is locked yet. Pick from 12 UI/UX types, test light/dark, adjust logo size, then we can harden the final choice later.</p></div><div class="notice-fixed">Current selection: ${styleName()} / ${mode()} mode. You can still change it while we are getting this right.</div>`;
+  panel.innerHTML = `<div><p class="eyebrow">Developer / Brand Room</p><h2>Pick and preview the tenant UI/UX</h2><p>This room belongs under Developer Room. It stays stable while testing styles. Developer chooses which portals exist, then Admin can restrict user access inside that enabled set.</p></div><div class="notice-fixed">Current selection: ${styleName()} / ${mode()} mode. You can still change it while we are getting this right.</div>`;
   panel.appendChild(logoSection());
 
   const styleSection = document.createElement('section');
@@ -192,12 +234,7 @@ function inject(){
   styleSection.querySelector('.palette-grid').append(...pal.map(([name,color]) => paletteButton(name,color)));
   panel.appendChild(styleSection);
 
-  const colorSection = document.createElement('section');
-  colorSection.className = 'brand-section';
-  colorSection.innerHTML = `<div><p class="eyebrow">Manual colors</p><h2>Small color cleanup</h2><p>Use these after picking the style. They do not change the architecture.</p></div><div class="color-grid-simple"></div>`;
-  const colors = colorSection.querySelector('.color-grid-simple');
-  [['Background','pageBgColor'],['Card','cardColor'],['Bubble / Accent','accentColor'],['Surface','surfaceColor'],['Text','textColor'],['Border','borderColor']].forEach(([label,key]) => colors.appendChild(colorControl(label,key)));
-  panel.appendChild(colorSection);
+  panel.appendChild(uiuxSampleSection());
 
   grid.prepend(panel);
 }
