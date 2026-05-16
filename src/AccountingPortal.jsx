@@ -40,18 +40,19 @@ function TableCard({ title, rows, emptyLabel }) {
 }
 
 function AccountingNav({ activeSection, setActiveSection }) {
-  const active = accountingSections.find(([id]) => id === activeSection) || accountingSections[0];
-  return <nav className="accounting-section-nav panel">
-    <label>
-      <span>Accounting area</span>
-      <select value={activeSection} onChange={(event) => setActiveSection(event.target.value)}>
-        {accountingSections.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
-      </select>
-    </label>
+  return <nav className="accounting-section-nav panel accounting-compact-nav">
+    <div className="accounting-nav-row">
+      <label>
+        <span>Accounting area</span>
+        <select value={activeSection} onChange={(event) => setActiveSection(event.target.value)}>
+          {accountingSections.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+        </select>
+      </label>
+      <div className="accounting-header-actions compact"><button>New invoice</button><button>Enter bill</button><button>Record payment</button></div>
+    </div>
     <div className="accounting-tabs">
       {accountingSections.slice(0, 7).map(([id, label]) => <button key={id} className={activeSection === id ? 'active' : ''} onClick={() => setActiveSection(id)}>{label}</button>)}
     </div>
-    <small>{active[2]}</small>
   </nav>;
 }
 
@@ -127,7 +128,7 @@ export default function AccountingPortal() {
   const [invoices, setInvoices] = useState([]);
   const [bills, setBills] = useState([]);
   const [error, setError] = useState('');
-  const [activeSection, setActiveSection] = useState('dashboard');
+  const [activeSection, setActiveSection] = useState('ar');
 
   useEffect(() => {
     let alive = true;
@@ -154,18 +155,9 @@ export default function AccountingPortal() {
   }, []);
 
   const summary = status.summary || fallbackSummary;
-  const activeMeta = useMemo(() => accountingSections.find(([id]) => id === activeSection) || accountingSections[0], [activeSection]);
+  useMemo(() => accountingSections.find(([id]) => id === activeSection) || accountingSections[0], [activeSection]);
 
   return <>
-    <header className="workspace-header panel accounting-header">
-      <div>
-        <p className="eyebrow">Accounting</p>
-        <h1>Accounting</h1>
-        <p>{activeMeta[2]}. Standard accounting workflow for AR, AP, billing, payments, chart of accounts, general ledger, month-end, and project financial control.</p>
-      </div>
-      <div className="accounting-header-actions"><button>New invoice</button><button>Enter bill</button><button>Record payment</button></div>
-    </header>
-
     <AccountingNav activeSection={activeSection} setActiveSection={setActiveSection} />
 
     {error && <div className="notice">{error}</div>}
