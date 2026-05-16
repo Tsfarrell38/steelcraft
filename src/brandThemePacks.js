@@ -1,261 +1,205 @@
 const KEY = 'steelcraft_brand_controls_v1';
-const LOCK_KEY = 'steelcraft_brand_ui_locked_v1';
+const OLD_LOCK_KEY = 'steelcraft_brand_ui_locked_v1';
 
-const launchStyles = [
-  {
-    name: 'Luxury',
-    description: 'Premium executive look with larger cards and a boardroom feel.',
-    layout: 'command-center',
-    light: {
-      uiTheme:'locked-luxury-light', navLayout:'command-center', radius:30, buttonRadius:999, cardPadding:34, density:20, logoSize:82, portalButtonHeight:108, cardMaxWidth:94, headerHeight:96,
-      accentColor:'#b9914b', buttonColor:'#b9914b', pageBgColor:'#f5f0e8', surfaceColor:'#fffaf0', surfaceAltColor:'#eee2cc', cardColor:'#fffaf0', inputColor:'#fff7e8', textColor:'#16110a', mutedTextColor:'#6e604b', borderColor:'#d8c49f', sidebarColor:'#fffaf0', topbarColor:'#fffaf0', shadowColor:'#7d6a4d'
-    },
-    dark: {
-      uiTheme:'locked-luxury-dark', navLayout:'command-center', radius:30, buttonRadius:999, cardPadding:34, density:20, logoSize:82, portalButtonHeight:108, cardMaxWidth:94, headerHeight:96,
-      accentColor:'#b9914b', buttonColor:'#b9914b', pageBgColor:'#050505', surfaceColor:'#0c0a07', surfaceAltColor:'#17120a', cardColor:'#11100d', inputColor:'#15110a', textColor:'#fff7e6', mutedTextColor:'#b9a98a', borderColor:'#4c3a1a', sidebarColor:'#0c0a07', topbarColor:'#0c0a07', shadowColor:'#000000'
-    },
-    palettes: [
-      ['Black Gold', { accentColor:'#b9914b', buttonColor:'#b9914b' }],
-      ['Copper', { accentColor:'#b46b48', buttonColor:'#b46b48' }],
-      ['Platinum', { accentColor:'#c7c7c7', buttonColor:'#71717a' }]
-    ]
-  },
-  {
-    name: 'Industrial',
-    description: 'Steel shop, practical panels, strong operations feel.',
-    layout: 'dock-left',
-    light: {
-      uiTheme:'locked-industrial-light', navLayout:'dock-left', radius:6, buttonRadius:4, cardPadding:22, density:12, logoSize:64, portalButtonHeight:82, cardMaxWidth:100, headerHeight:76,
-      accentColor:'#9f3d42', buttonColor:'#9f3d42', pageBgColor:'#f0f2f4', surfaceColor:'#ffffff', surfaceAltColor:'#e5e8ec', cardColor:'#ffffff', inputColor:'#ffffff', textColor:'#111827', mutedTextColor:'#566174', borderColor:'#c9d0d8', sidebarColor:'#ffffff', topbarColor:'#ffffff', shadowColor:'#9aa3ad'
-    },
-    dark: {
-      uiTheme:'locked-industrial-dark', navLayout:'dock-left', radius:6, buttonRadius:4, cardPadding:22, density:12, logoSize:64, portalButtonHeight:82, cardMaxWidth:100, headerHeight:76,
-      accentColor:'#9f3d42', buttonColor:'#9f3d42', pageBgColor:'#030303', surfaceColor:'#141418', surfaceAltColor:'#1e1e24', cardColor:'#151519', inputColor:'#202026', textColor:'#f6f0ea', mutedTextColor:'#b7aaa3', borderColor:'#343036', sidebarColor:'#111116', topbarColor:'#111116', shadowColor:'#000000'
-    },
-    palettes: [
-      ['Steel Red', { accentColor:'#9f3d42', buttonColor:'#9f3d42' }],
-      ['Safety Amber', { accentColor:'#d99b34', buttonColor:'#d99b34' }],
-      ['Weld Blue', { accentColor:'#4c9bd9', buttonColor:'#335c81' }]
-    ]
-  },
-  {
-    name: 'Executive',
-    description: 'Clean office ERP, readable, calm, and professional.',
-    layout: 'top-rail',
-    light: {
-      uiTheme:'locked-executive-light', navLayout:'top-rail', radius:16, buttonRadius:10, cardPadding:22, density:12, logoSize:58, portalButtonHeight:54, cardMaxWidth:100, headerHeight:72,
-      accentColor:'#1f4f82', buttonColor:'#1f4f82', pageBgColor:'#f5f7fb', surfaceColor:'#ffffff', surfaceAltColor:'#eef2f7', cardColor:'#ffffff', inputColor:'#ffffff', textColor:'#162033', mutedTextColor:'#5c6678', borderColor:'#d7dee8', sidebarColor:'#ffffff', topbarColor:'#ffffff', shadowColor:'#aeb7c5'
-    },
-    dark: {
-      uiTheme:'locked-executive-dark', navLayout:'top-rail', radius:16, buttonRadius:10, cardPadding:22, density:12, logoSize:58, portalButtonHeight:54, cardMaxWidth:100, headerHeight:72,
-      accentColor:'#7aa2d8', buttonColor:'#295d96', pageBgColor:'#07111f', surfaceColor:'#0d1726', surfaceAltColor:'#142033', cardColor:'#101b2b', inputColor:'#142033', textColor:'#f3f7ff', mutedTextColor:'#9fb0c4', borderColor:'#2c3c52', sidebarColor:'#0d1726', topbarColor:'#0d1726', shadowColor:'#000000'
-    },
-    palettes: [
-      ['Navy', { accentColor:'#1f4f82', buttonColor:'#1f4f82' }],
-      ['Slate', { accentColor:'#475569', buttonColor:'#334155' }],
-      ['Burgundy', { accentColor:'#7f1d1d', buttonColor:'#7f1d1d' }]
-    ]
-  },
-  {
-    name: 'Field',
-    description: 'Large touch targets for shop, tablet, and field work.',
-    layout: 'bottom-dock',
-    light: {
-      uiTheme:'locked-field-light', navLayout:'bottom-dock', radius:18, buttonRadius:12, cardPadding:34, density:24, logoSize:86, portalButtonHeight:145, cardMaxWidth:100, headerHeight:118,
-      accentColor:'#d99b34', buttonColor:'#d99b34', pageBgColor:'#f5f1e9', surfaceColor:'#fffaf0', surfaceAltColor:'#eee5d4', cardColor:'#fffaf0', inputColor:'#fff7e8', textColor:'#1f2718', mutedTextColor:'#67705a', borderColor:'#d8c7a5', sidebarColor:'#fffaf0', topbarColor:'#fffaf0', shadowColor:'#9c896a'
-    },
-    dark: {
-      uiTheme:'locked-field-dark', navLayout:'bottom-dock', radius:18, buttonRadius:12, cardPadding:34, density:24, logoSize:86, portalButtonHeight:145, cardMaxWidth:100, headerHeight:118,
-      accentColor:'#d99b34', buttonColor:'#d99b34', pageBgColor:'#10120f', surfaceColor:'#171a14', surfaceAltColor:'#202719', cardColor:'#171c13', inputColor:'#202719', textColor:'#f5f8ed', mutedTextColor:'#b9c2ad', borderColor:'#3e4b2f', sidebarColor:'#171a14', topbarColor:'#171a14', shadowColor:'#000000'
-    },
-    palettes: [
-      ['Caution Gold', { accentColor:'#d99b34', buttonColor:'#d99b34' }],
-      ['Work Green', { accentColor:'#5f8d3b', buttonColor:'#5f8d3b' }],
-      ['Field Blue', { accentColor:'#4c9bd9', buttonColor:'#335c81' }]
-    ]
-  }
+const baseDark = {
+  pageBgColor:'#06070b', surfaceColor:'#11141c', surfaceAltColor:'#1a202b', cardColor:'#121722', inputColor:'#171f2b',
+  textColor:'#f5f7fb', mutedTextColor:'#a8b2c2', borderColor:'#2d3748', sidebarColor:'#10141d', topbarColor:'#10141d', shadowColor:'#000000'
+};
+const baseLight = {
+  pageBgColor:'#f4f6f8', surfaceColor:'#ffffff', surfaceAltColor:'#edf1f5', cardColor:'#ffffff', inputColor:'#ffffff',
+  textColor:'#152033', mutedTextColor:'#5d6678', borderColor:'#d7dee8', sidebarColor:'#ffffff', topbarColor:'#ffffff', shadowColor:'#aeb7c5'
+};
+
+const styleDefs = [
+  ['Luxury','Premium executive, larger cards, boardroom spacing.','command-center',30,999,34,20,82,'#b9914b'],
+  ['Industrial','Steel shop, practical panels, strong operations feel.','dock-left',6,4,22,12,64,'#9f3d42'],
+  ['Executive','Clean office ERP, readable, calm, professional.','top-rail',16,10,22,12,58,'#1f4f82'],
+  ['Field','Large touch targets for shop, tablet, and field work.','bottom-dock',18,12,34,24,86,'#d99b34'],
+  ['Sport','Sharp, energetic, high-contrast operations style.','bottom-dock',10,6,28,18,74,'#e84a5f'],
+  ['Architectural','Clean grid, blueprint feel, square technical lines.','left-sidebar',0,0,20,10,60,'#4c9bd9'],
+  ['Modern','Rounded SaaS look with balanced dashboard spacing.','dock-right',24,999,26,16,66,'#7c4dff'],
+  ['Client Soft','Warm customer-facing style with softer edges.','top-rail',32,999,30,18,66,'#8a4e32'],
+  ['Finance Ledger','Compact table-first accounting and reporting view.','left-sidebar',4,4,16,6,48,'#5db0ff'],
+  ['Command Center','Dark control-room dashboard, status focused.','command-center',24,999,28,18,70,'#38bdf8'],
+  ['Minimal Grid','Quiet, thin-border ERP with simple flat panels.','top-rail',2,2,16,8,54,'#64748b'],
+  ['Warm Studio','Soft creative workspace with warm neutral surfaces.','dock-left',26,20,28,18,70,'#b7794d']
 ];
 
+const palettes = {
+  Luxury:[['Black Gold','#b9914b'],['Copper','#b46b48'],['Platinum','#a3a3a3'],['Champagne','#d6b66d']],
+  Industrial:[['Steel Red','#9f3d42'],['Safety Amber','#d99b34'],['Weld Blue','#4c9bd9'],['Iron Gray','#71717a']],
+  Executive:[['Navy','#1f4f82'],['Slate','#475569'],['Burgundy','#7f1d1d'],['Boardroom Green','#2f5d50']],
+  Field:[['Caution Gold','#d99b34'],['Work Green','#5f8d3b'],['Field Blue','#4c9bd9'],['Safety Orange','#f97316']],
+  Sport:[['Redline','#e84a5f'],['Track Orange','#f97316'],['Electric Lime','#84cc16'],['Race Blue','#2563eb']],
+  Architectural:[['Blueprint','#4c9bd9'],['Graphite','#94a3b8'],['Concrete Tan','#b59b7a'],['Ink Black','#111827']],
+  Modern:[['Violet','#7c4dff'],['Cyan','#38bdf8'],['Rose','#c45f7d'],['Emerald','#10b981']],
+  'Client Soft':[['Warm Brown','#8a4e32'],['Soft Green','#4f7b5b'],['Quiet Navy','#335c81'],['Clay','#b7794d']],
+  'Finance Ledger':[['Ledger Blue','#5db0ff'],['Bank Green','#3fb56f'],['Audit Slate','#64748b'],['Deep Navy','#1d4ed8']],
+  'Command Center':[['Control Cyan','#38bdf8'],['Signal Purple','#8b5cf6'],['Alert Amber','#f59e0b'],['Ops Green','#22c55e']],
+  'Minimal Grid':[['Slate','#64748b'],['Black','#111827'],['Blue Gray','#475569'],['Neutral','#737373']],
+  'Warm Studio':[['Clay','#b7794d'],['Terracotta','#c56a4a'],['Olive','#6b7d4f'],['Coffee','#7c4a2d']]
+};
+
 function read(){ try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } }
-function write(next){ localStorage.setItem(KEY, JSON.stringify(next)); }
-function isLocked(){ return localStorage.getItem(LOCK_KEY) === 'true'; }
-function save(patch, options = {}) {
-  const next = { ...read(), ...patch };
-  if (options.lock) localStorage.setItem(LOCK_KEY, 'true');
-  write(next);
-  location.reload();
-}
-function selectedStyle(){ return read().brandStyle || 'Industrial'; }
-function selectedMode(){ return read().brandMode || 'dark'; }
-function styleByName(name){ return launchStyles.find((item) => item.name === name) || launchStyles[1]; }
-function currentStylePatch(style){ return style[selectedMode()] || style.dark; }
-
-function hideOriginalBrandPanels(){
-  document.querySelectorAll('.brand-studio-grid > article').forEach((panel) => {
-    if (!panel.classList.contains('locked-brand-room')) panel.style.display = 'none';
-  });
-}
-
-function simpleColor(label, key){
-  const wrap = document.createElement('label');
-  const current = read()[key] || currentStylePatch(styleByName(selectedStyle()))[key] || '#000000';
-  wrap.className = 'locked-color-control';
-  wrap.innerHTML = `<span>${label}</span><input type="color" value="${current}" />`;
-  wrap.querySelector('input').oninput = (e) => {
-    const currentBrand = read();
-    currentBrand[key] = e.target.value;
-    if (key === 'accentColor') currentBrand.buttonColor = e.target.value;
-    write(currentBrand);
-    location.reload();
+function write(patch){ localStorage.removeItem(OLD_LOCK_KEY); localStorage.setItem(KEY, JSON.stringify({ ...read(), ...patch })); }
+function reload(patch){ write(patch); location.reload(); }
+function mode(){ return read().brandMode || 'dark'; }
+function styleName(){ return read().brandStyle || 'Industrial'; }
+function styleRecord(name){ return styleDefs.find(([n]) => n === name) || styleDefs[1]; }
+function stylePatch(name, requestedMode = mode()){
+  const [style, description, navLayout, radius, buttonRadius, cardPadding, density, logoSize, accent] = styleRecord(name);
+  const base = requestedMode === 'light' ? baseLight : baseDark;
+  return {
+    ...base,
+    brandStyle: style,
+    brandMode: requestedMode,
+    uiTheme: `brand-${style.toLowerCase().replace(/\s+/g,'-')}-${requestedMode}`,
+    navLayout, radius, buttonRadius, cardPadding, density, logoSize,
+    borderWidth: 1,
+    shadowStrength: requestedMode === 'light' ? 22 : 58,
+    fontScale: style === 'Field' ? 112 : style === 'Finance Ledger' ? 90 : 100,
+    portalButtonHeight: style === 'Field' ? 145 : style === 'Finance Ledger' ? 46 : style === 'Executive' ? 54 : style === 'Luxury' ? 108 : 82,
+    cardMaxWidth: style === 'Luxury' ? 94 : style === 'Client Soft' ? 96 : 100,
+    headerHeight: style === 'Field' ? 118 : style === 'Luxury' ? 96 : 76,
+    accentColor: accent,
+    buttonColor: accent,
+    buttonTextColor: '#ffffff'
   };
+}
+
+function injectFixedCss(){
+  if (document.getElementById('fixed-brand-room-css')) return;
+  const s = document.createElement('style');
+  s.id = 'fixed-brand-room-css';
+  s.textContent = `
+    .brand-controls{background:#07111f!important;color:#f3f7ff!important;}
+    .brand-controls .workspace-header,.brand-controls .fixed-brand-room{background:#0d1726!important;color:#f3f7ff!important;border:1px solid #2f4b68!important;border-radius:18px!important;box-shadow:none!important;}
+    .brand-controls .brand-studio-grid{display:grid!important;grid-template-columns:1fr!important;gap:18px!important;max-width:1380px!important;margin:0 auto!important;width:100%!important;}
+    .brand-studio-grid>article:not(.fixed-brand-room){display:none!important;}
+    .fixed-brand-room{display:grid!important;gap:20px!important;padding:24px!important;grid-column:1/-1!important;}
+    .fixed-brand-room h2{font-size:clamp(25px,3vw,38px)!important;line-height:1!important;letter-spacing:-.04em!important;margin:0 0 8px!important;color:#f3f7ff!important;}
+    .fixed-brand-room p,.fixed-brand-room small{color:#9fb0c4!important;line-height:1.45!important;}
+    .fixed-brand-room .eyebrow{color:#5aa2dc!important;letter-spacing:.16em!important;text-transform:uppercase!important;font-size:12px!important;font-weight:900!important;}
+    .brand-section{display:grid!important;gap:16px!important;border:1px solid #2f4b68!important;border-radius:16px!important;background:#101b2b!important;padding:20px!important;}
+    .logo-section{grid-template-columns:minmax(260px,.7fr) minmax(520px,1.3fr)!important;align-items:start!important;}
+    .logo-controls{display:grid!important;grid-template-columns:120px repeat(2,minmax(0,1fr))!important;gap:12px!important;align-items:end!important;}
+    .logo-preview{width:108px!important;height:108px!important;border:1px solid #5aa2dc!important;border-radius:16px!important;background:#07111f!important;display:grid!important;place-items:center!important;overflow:hidden!important;color:#f3f7ff!important;}
+    .logo-preview img{max-width:100%!important;max-height:100%!important;object-fit:contain!important;}
+    .brand-field{display:grid!important;gap:7px!important;color:#f3f7ff!important;font-weight:800!important;margin:0!important;}
+    .brand-field input,.brand-field select{background:#07111f!important;color:#f3f7ff!important;border:1px solid #2f4b68!important;border-radius:10px!important;padding:10px!important;width:100%!important;}
+    .brand-field input[type=range]{accent-color:#5aa2dc!important;padding:0!important;}
+    .style-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:14px!important;}
+    .style-card{min-height:205px!important;text-align:left!important;border:1px solid #2f4b68!important;background:#0d1726!important;color:#f3f7ff!important;border-radius:16px!important;padding:16px!important;display:grid!important;gap:10px!important;align-content:start!important;white-space:normal!important;}
+    .style-card strong{font-size:20px!important;line-height:1.05!important;color:#fff!important;display:block!important;}
+    .style-card small{font-size:13px!important;line-height:1.35!important;display:block!important;}
+    .style-card b{justify-self:start!important;margin-top:auto!important;background:#16324c!important;color:#d8ecff!important;border:1px solid #2f4b68!important;border-radius:999px!important;padding:6px 9px!important;font-size:11px!important;text-transform:uppercase!important;letter-spacing:.08em!important;}
+    .style-card.active,.style-card:hover{border-color:#5aa2dc!important;background:#132640!important;}
+    .style-preview{height:64px!important;border-radius:12px!important;display:grid!important;grid-template-columns:1.4fr 1fr 1fr!important;gap:6px!important;padding:8px!important;background:#07111f!important;border:1px solid #2f4b68!important;}
+    .style-preview i{display:block!important;border-radius:8px!important;background:var(--preview-accent,#5aa2dc)!important;}.style-preview i:first-child{grid-column:1/-1!important;}
+    .mode-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,180px))!important;gap:12px!important;}.palette-grid,.color-grid-simple{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:12px!important;}
+    .mode-button,.palette-button{border:1px solid #2f4b68!important;background:#0d1726!important;color:#f3f7ff!important;border-radius:12px!important;padding:13px!important;text-align:left!important;font-weight:900!important;white-space:normal!important;}
+    .mode-button.active,.mode-button:hover,.palette-button:hover{background:#16324c!important;border-color:#5aa2dc!important;}
+    .notice-fixed{border:1px solid #5aa2dc!important;background:#0a2238!important;border-radius:14px!important;padding:14px!important;color:#d8ecff!important;font-weight:800!important;line-height:1.45!important;}
+    @media(max-width:1100px){.style-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;}.logo-section,.logo-controls,.palette-grid,.color-grid-simple{grid-template-columns:1fr!important;}}
+    @media(max-width:650px){.style-grid{grid-template-columns:1fr!important;}.mode-grid{grid-template-columns:1fr 1fr!important;}}
+  `;
+  document.head.appendChild(s);
+}
+
+function styleCard(def){
+  const [name, desc, layout,,,,,, accent] = def;
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = `style-card ${styleName() === name ? 'active' : ''}`;
+  b.style.setProperty('--preview-accent', accent);
+  b.innerHTML = `<span class="style-preview"><i></i><i></i><i></i></span><strong>${name}</strong><small>${desc}</small><b>${layout.replace('-', ' ')}</b>`;
+  b.onclick = () => reload(stylePatch(name, mode()));
+  return b;
+}
+function modeButton(m){
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = `mode-button ${mode() === m ? 'active' : ''}`;
+  b.textContent = m === 'dark' ? 'Dark mode' : 'Light mode';
+  b.onclick = () => reload(stylePatch(styleName(), m));
+  return b;
+}
+function paletteButton(name, color){
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'palette-button';
+  b.innerHTML = `<strong>${name}</strong><small>${color}</small>`;
+  b.onclick = () => reload({ accentColor: color, buttonColor: color });
+  return b;
+}
+function colorControl(label, key){
+  const brand = read();
+  const fallback = stylePatch(styleName(), mode())[key] || '#000000';
+  const wrap = document.createElement('label');
+  wrap.className = 'brand-field';
+  wrap.innerHTML = `<span>${label}</span><input type="color" value="${brand[key] || fallback}" />`;
+  wrap.querySelector('input').oninput = (e) => reload({ [key]: e.target.value, ...(key === 'accentColor' ? { buttonColor: e.target.value } : {}) });
   return wrap;
 }
-
-function styleCard(style){
-  const locked = isLocked();
-  const active = selectedStyle() === style.name;
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = `locked-style-card ${active ? 'active' : ''}`;
-  button.disabled = locked && !active;
-  button.innerHTML = `
-    <span class="locked-style-preview locked-${style.name.toLowerCase().replace(/\s+/g, '-')}"><i></i><i></i><i></i></span>
-    <strong>${style.name}</strong>
-    <small>${style.description}</small>
-    <b>${style.layout.replace('-', ' ')}</b>
-  `;
-  button.onclick = () => save({ ...currentStylePatch(style), brandStyle: style.name, brandMode: selectedMode() }, { lock: true });
-  return button;
-}
-
-function modeButton(mode){
-  const style = styleByName(selectedStyle());
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = `locked-mode-button ${selectedMode() === mode ? 'active' : ''}`;
-  button.textContent = mode === 'dark' ? 'Dark mode' : 'Light mode';
-  button.onclick = () => save({ ...style[mode], brandStyle: style.name, brandMode: mode });
-  return button;
-}
-
-function paletteButton(name, patch){
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'locked-palette-button';
-  button.innerHTML = `<strong>${name}</strong><small>Accent set</small>`;
-  button.onclick = () => save(patch);
-  return button;
-}
-
 function logoSection(){
   const brand = read();
   const section = document.createElement('section');
-  section.className = 'locked-logo-section';
+  section.className = 'brand-section logo-section';
+  const size = Number(brand.logoSize || stylePatch(styleName(), mode()).logoSize || 64);
   section.innerHTML = `
-    <div>
-      <p class="eyebrow">Logo stays fixed</p>
-      <h2>Logo room</h2>
-      <p>Logo controls stay in this position and do not move when the app UI style changes.</p>
-    </div>
-    <div class="locked-logo-card">
-      <div class="locked-logo-preview">${brand.logoUrl ? `<img src="${brand.logoUrl}" alt="Logo preview" />` : `<strong>${(brand.logoText || 'Steel Craft').slice(0,2).toUpperCase()}</strong>`}</div>
-      <label>Logo text<input id="lockedLogoText" value="${brand.logoText || 'Steel Craft'}" /></label>
-      <label>Subtext<input id="lockedLogoSubtext" value="${brand.logoSubtext || 'Operations Portal'}" /></label>
-      <label>Upload logo<input id="lockedLogoUpload" type="file" accept="image/*" /></label>
-    </div>
-  `;
-  section.querySelector('#lockedLogoText').onchange = (e) => save({ logoText: e.target.value });
-  section.querySelector('#lockedLogoSubtext').onchange = (e) => save({ logoSubtext: e.target.value });
-  section.querySelector('#lockedLogoUpload').onchange = (e) => {
+    <div><p class="eyebrow">Logo controls</p><h2>Logo room</h2><p>This area stays fixed. Logo size, shape, text, and upload stay available while you test UI/UX styles.</p></div>
+    <div class="logo-controls">
+      <div class="logo-preview">${brand.logoUrl ? `<img src="${brand.logoUrl}" alt="Logo preview" />` : `<strong>${(brand.logoText || 'SC').slice(0,2).toUpperCase()}</strong>`}</div>
+      <label class="brand-field">Logo text<input id="logoText" value="${brand.logoText || 'Steel Craft'}" /></label>
+      <label class="brand-field">Subtext<input id="logoSubtext" value="${brand.logoSubtext || 'Operations Portal'}" /></label>
+      <label class="brand-field">Logo URL<input id="logoUrl" value="${brand.logoUrl || ''}" placeholder="https://..." /></label>
+      <label class="brand-field">Logo shape<select id="logoShape"><option value="square">Square</option><option value="rounded">Rounded</option><option value="circle">Circle</option><option value="wide">Wide</option></select></label>
+      <label class="brand-field">Upload logo<input id="logoUpload" type="file" accept="image/*" /></label>
+      <label class="brand-field" style="grid-column:1/-1">Logo size <b>${size}px</b><input id="logoSize" type="range" min="28" max="160" value="${size}" /></label>
+    </div>`;
+  section.querySelector('#logoShape').value = brand.logoShape || 'square';
+  section.querySelector('#logoText').onchange = e => reload({ logoText:e.target.value });
+  section.querySelector('#logoSubtext').onchange = e => reload({ logoSubtext:e.target.value });
+  section.querySelector('#logoUrl').onchange = e => reload({ logoUrl:e.target.value, logoMode:e.target.value ? 'image' : (brand.logoMode || 'initials') });
+  section.querySelector('#logoShape').onchange = e => reload({ logoShape:e.target.value });
+  section.querySelector('#logoSize').onchange = e => reload({ logoSize:Number(e.target.value) });
+  section.querySelector('#logoUpload').onchange = e => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => save({ logoUrl: reader.result, logoMode: 'image' });
+    reader.onload = () => reload({ logoUrl: reader.result, logoMode:'image' });
     reader.readAsDataURL(file);
   };
   return section;
 }
-
-function injectFixedCss(){
-  if (document.getElementById('locked-brand-room-css')) return;
-  const style = document.createElement('style');
-  style.id = 'locked-brand-room-css';
-  style.textContent = `
-    .brand-controls{--brand-room-bg:#07111f!important;--brand-room-panel:#0d1726!important;--brand-room-card:#101b2b!important;--brand-room-text:#f3f7ff!important;--brand-room-muted:#9fb0c4!important;--brand-room-line:#2f4b68!important;--brand-room-accent:#5aa2dc!important;background:#07111f!important;color:#f3f7ff!important;}
-    .brand-controls .brand-studio-grid{display:grid!important;grid-template-columns:1fr!important;gap:18px!important;max-width:1320px!important;margin:0 auto!important;width:100%!important;}
-    .brand-controls .workspace-header,.brand-controls .locked-brand-room{background:#0d1726!important;color:#f3f7ff!important;border:1px solid #2f4b68!important;border-radius:18px!important;box-shadow:none!important;}
-    .locked-brand-room{display:grid!important;gap:22px!important;padding:24px!important;grid-column:1/-1!important;}
-    .locked-brand-room h2{font-size:clamp(26px,3vw,38px)!important;line-height:1!important;letter-spacing:-.04em!important;margin:0 0 8px!important;color:#f3f7ff!important;}
-    .locked-brand-room p,.locked-brand-room small{color:#9fb0c4!important;line-height:1.45!important;}
-    .locked-brand-room .eyebrow{color:#5aa2dc!important;letter-spacing:.16em!important;text-transform:uppercase!important;font-size:12px!important;font-weight:900!important;}
-    .locked-logo-section,.locked-selection-section,.locked-color-section{display:grid!important;gap:16px!important;border:1px solid #2f4b68!important;border-radius:16px!important;background:#101b2b!important;padding:20px!important;}
-    .locked-logo-section{grid-template-columns:minmax(260px,.8fr) minmax(360px,1.2fr)!important;align-items:start!important;}
-    .locked-logo-card{display:grid!important;grid-template-columns:110px 1fr 1fr!important;gap:12px!important;align-items:end!important;}
-    .locked-logo-card label,.locked-color-control{display:grid!important;gap:7px!important;color:#f3f7ff!important;font-weight:800!important;margin:0!important;}
-    .locked-logo-card input,.locked-color-control input{background:#07111f!important;color:#f3f7ff!important;border:1px solid #2f4b68!important;border-radius:10px!important;padding:10px!important;width:100%!important;}
-    .locked-logo-preview{width:96px!important;height:96px!important;border:1px solid #5aa2dc!important;border-radius:16px!important;background:#07111f!important;display:grid!important;place-items:center!important;overflow:hidden!important;color:#f3f7ff!important;}
-    .locked-logo-preview img{max-width:100%!important;max-height:100%!important;object-fit:contain!important;}
-    .locked-style-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:14px!important;}
-    .locked-style-card{min-height:190px!important;text-align:left!important;border:1px solid #2f4b68!important;background:#0d1726!important;color:#f3f7ff!important;border-radius:16px!important;padding:16px!important;display:grid!important;gap:10px!important;align-content:start!important;white-space:normal!important;}
-    .locked-style-card strong{font-size:20px!important;line-height:1.05!important;color:#fff!important;display:block!important;}
-    .locked-style-card small{font-size:13px!important;line-height:1.35!important;display:block!important;}
-    .locked-style-card b{justify-self:start!important;margin-top:auto!important;background:#16324c!important;color:#d8ecff!important;border:1px solid #2f4b68!important;border-radius:999px!important;padding:6px 9px!important;font-size:11px!important;text-transform:uppercase!important;letter-spacing:.08em!important;}
-    .locked-style-card.active,.locked-style-card:hover{border-color:#5aa2dc!important;background:#132640!important;}
-    .locked-style-card:disabled{opacity:.55!important;cursor:not-allowed!important;}
-    .locked-style-preview{height:58px!important;border-radius:12px!important;display:grid!important;grid-template-columns:1.4fr 1fr 1fr!important;gap:6px!important;padding:8px!important;background:#07111f!important;border:1px solid #2f4b68!important;}
-    .locked-style-preview i{display:block!important;border-radius:8px!important;background:#5aa2dc!important;}.locked-style-preview i:first-child{grid-column:1/-1!important;}
-    .locked-luxury i{background:#b9914b!important}.locked-industrial i{background:#9f3d42!important}.locked-executive i{background:#1f4f82!important}.locked-field i{background:#d99b34!important}
-    .locked-mode-grid,.locked-palette-grid,.locked-color-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important;}
-    .locked-mode-grid{grid-template-columns:repeat(2,minmax(0,180px))!important;}
-    .locked-mode-button,.locked-palette-button{border:1px solid #2f4b68!important;background:#0d1726!important;color:#f3f7ff!important;border-radius:12px!important;padding:13px!important;text-align:left!important;font-weight:900!important;white-space:normal!important;}
-    .locked-mode-button.active,.locked-mode-button:hover,.locked-palette-button:hover{background:#16324c!important;border-color:#5aa2dc!important;}
-    .locked-color-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;}
-    .locked-brand-notice{border:1px solid #5aa2dc!important;background:#0a2238!important;border-radius:14px!important;padding:14px!important;color:#d8ecff!important;font-weight:800!important;line-height:1.45!important;}
-    @media(max-width:1000px){.locked-style-grid,.locked-logo-section,.locked-logo-card,.locked-color-grid,.locked-palette-grid{grid-template-columns:1fr!important;}.locked-mode-grid{grid-template-columns:1fr 1fr!important;}}
-  `;
-  document.head.appendChild(style);
-}
-
 function inject(){
   if(location.pathname.replace(/\/$/,'') !== '/brand') return;
   injectFixedCss();
   const grid = document.querySelector('.brand-studio-grid');
-  if(!grid) return;
-  hideOriginalBrandPanels();
-  if(document.querySelector('.locked-brand-room')) return;
+  if(!grid || document.querySelector('.fixed-brand-room')) return;
 
-  const current = styleByName(selectedStyle());
-  const locked = isLocked();
   const panel = document.createElement('article');
-  panel.className = 'feature panel locked-brand-room';
-  panel.innerHTML = `
-    <div>
-      <p class="eyebrow">Brand room is locked</p>
-      <h2>Initial UI/UX setup</h2>
-      <p>This room does not inherit the app UI/UX. Pick the customer style at setup, lock it, then only adjust logo and colors after that.</p>
-    </div>
-    <div class="locked-brand-notice">${locked ? `UI/UX style is locked to ${selectedStyle()} / ${selectedMode()} mode. This prevents ongoing style changes from breaking the app architecture.` : 'Choose one launch style below. Selecting a style locks the UI/UX architecture for this tenant.'}</div>
-  `;
-
+  panel.className = 'feature panel fixed-brand-room';
+  panel.innerHTML = `<div><p class="eyebrow">Stable Brand Room</p><h2>Pick and preview the tenant UI/UX</h2><p>This room is hard-coded so it does not morph while testing styles. Nothing is locked yet. Pick from 12 UI/UX types, test light/dark, adjust logo size, then we can harden the final choice later.</p></div><div class="notice-fixed">Current selection: ${styleName()} / ${mode()} mode. You can still change it while we are getting this right.</div>`;
   panel.appendChild(logoSection());
 
-  const selectSection = document.createElement('section');
-  selectSection.className = 'locked-selection-section';
-  selectSection.innerHTML = '<div><p class="eyebrow">Step 1</p><h2>Choose one launch style</h2><p>These are intentionally limited. We can show 3–4 versions during onboarding, then lock the choice.</p></div><div class="locked-style-grid"></div><div><p class="eyebrow">Step 2</p><h2>Light / dark mode for selected style</h2><div class="locked-mode-grid"></div></div><div><p class="eyebrow">Step 3</p><h2>Good alternate accents</h2><div class="locked-palette-grid"></div></div>';
-  selectSection.querySelector('.locked-style-grid').append(...launchStyles.map(styleCard));
-  selectSection.querySelector('.locked-mode-grid').append(modeButton('light'), modeButton('dark'));
-  selectSection.querySelector('.locked-palette-grid').append(...current.palettes.map(([name, patch]) => paletteButton(name, patch)));
-  panel.appendChild(selectSection);
+  const styleSection = document.createElement('section');
+  styleSection.className = 'brand-section';
+  styleSection.innerHTML = `<div><p class="eyebrow">UI/UX styles</p><h2>12 style types</h2><p>Click a style to preview what it does. Later, after approval, we lock the chosen architecture.</p></div><div class="style-grid"></div><div><p class="eyebrow">Mode</p><h2>Light / dark for selected style</h2><div class="mode-grid"></div></div><div><p class="eyebrow">Good accents</p><h2>Alternate colors for ${styleName()}</h2><div class="palette-grid"></div></div>`;
+  styleSection.querySelector('.style-grid').append(...styleDefs.map(styleCard));
+  styleSection.querySelector('.mode-grid').append(modeButton('light'), modeButton('dark'));
+  const pal = palettes[styleName()] || palettes.Industrial;
+  styleSection.querySelector('.palette-grid').append(...pal.map(([name,color]) => paletteButton(name,color)));
+  panel.appendChild(styleSection);
 
   const colorSection = document.createElement('section');
-  colorSection.className = 'locked-color-section';
-  colorSection.innerHTML = '<div><p class="eyebrow">Small color edits only</p><h2>Manual colors</h2><p>Use these for cleanup. The UI/UX architecture stays locked.</p></div><div class="locked-color-grid"></div>';
-  const colors = colorSection.querySelector('.locked-color-grid');
-  [['Background','pageBgColor'],['Card','cardColor'],['Bubble / Accent','accentColor'],['Surface','surfaceColor'],['Text','textColor'],['Border','borderColor']].forEach(([label,key]) => colors.appendChild(simpleColor(label,key)));
+  colorSection.className = 'brand-section';
+  colorSection.innerHTML = `<div><p class="eyebrow">Manual colors</p><h2>Small color cleanup</h2><p>Use these after picking the style. They do not change the architecture.</p></div><div class="color-grid-simple"></div>`;
+  const colors = colorSection.querySelector('.color-grid-simple');
+  [['Background','pageBgColor'],['Card','cardColor'],['Bubble / Accent','accentColor'],['Surface','surfaceColor'],['Text','textColor'],['Border','borderColor']].forEach(([label,key]) => colors.appendChild(colorControl(label,key)));
   panel.appendChild(colorSection);
 
   grid.prepend(panel);
 }
-
 function start(){ inject(); new MutationObserver(inject).observe(document.documentElement,{childList:true,subtree:true}); }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', start); else start();
