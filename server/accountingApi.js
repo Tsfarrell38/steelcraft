@@ -2,15 +2,17 @@ import { createAccountingInvoice, getAccountingSummary, listAccountingTables, se
 import { appendLedgerEvent, getDagEventId, getLedgerProofFields } from './neroaLedgerClient.js';
 import { attachDagEvent, ensureAccountingDagSchema } from './accountingDagSchema.js';
 import { ensureAccountingInfrastructure, getAccountingInfrastructureStatus, recordAccountingModuleCheck, enqueueAccountingEvent } from './accountingInfrastructure.js';
+import { attachCheckDagEvent, createAccountingCheck, ensureAccountingChecksSchema, listAccountingChecks, markCheckPrinted } from './accountingChecks.js';
 
 async function ensureAccountingReady(db) {
   await seedAccountingDefaults(db);
   await ensureAccountingDagSchema(db);
   await ensureAccountingInfrastructure(db);
+  await ensureAccountingChecksSchema(db);
 }
 
 async function updateAccountingProofFields(db, tableName, id, proof) {
-  const allowed = new Set(['accounting_invoices', 'accounting_bills', 'accounting_payments', 'accounting_journal_entries', 'accounting_customers', 'accounting_vendors']);
+  const allowed = new Set(['accounting_invoices', 'accounting_bills', 'accounting_payments', 'accounting_journal_entries', 'accounting_customers', 'accounting_vendors', 'accounting_checks']);
   if (!allowed.has(tableName)) throw new Error(`Invalid proof table: ${tableName}`);
   await db.query(
     `update ${tableName}
@@ -35,9 +37,9 @@ export function registerAccountingRoutes(app, requireDatabase, ensureSchema) {
       await db.query(
         `insert into portal_activity_logs (actor, action, entity_type, metadata)
          values ($1, $2, $3, $4)`,
-        [req.body?.actor || 'system', 'accounting_schema_initialized', 'accounting', { tables, dagLinked: true, infrastructure }]
+        [req.body?.actor || 'system', 'accounting_schema_initialized', 'accounting', { tables, dagLinked: true, infrastructure, checks: true }]
       );
-      res.json({ ok: true, message: 'Accounting portal schema initialized with tenant-ready infrastructure and DAG proof linkage.', tables, infrastructure });
+      res.json({ ok: true, message: 'Accounting portal schema initialized with tenant-ready infrastructure, check writing, and DAG proof linkage.', tables, infrastructure });
     } catch (error) {
       next(error);
     }
@@ -198,6 +200,74 @@ export function registerAccountingRoutes(app, requireDatabase, ensureSchema) {
          limit 100`
       );
       res.json({ ok: true, payments: result.rows });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get('/api/accounting/checks', async (req, res, next) => {
+    try {
+      await ensureSchema();
+      const db = requireDatabase();
+      await ensureAccountingReady(db);
+      const checks = await listAccountingChecks(db);
+      res.json({ ok: true, checks });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post('/api/accounting/checks', async (req, res, next) => {
+    try {
+      await ensureSchema();
+      const db = requireDatabase();
+      await ensureAccountingReady(db);
+      const proof = getLedgerProofFields(req.body || {});
+      const check = await createAccountingCheck(db, { ...(req.body || {}), ...proof });
+      await updateAccountingProofFields(db, 'accounting_checks', check.id, proof);
+      const ledgerEvent = await appendLedgerEvent({
+        type: 'accounting.check.created',
+        actor: req.body?.actor || 'system',
+        projectId: check.project_id ? String(check.project_id) : undefined,
+        parentEventIds: req.body?.parentEventIds || [],
+        payload: {
+          checkId: String(check.id),
+          checkNumber: check.check_number,
+          vendorId: check.vendor_id ? String(check.vendor_id) : null,
+          billId: check.bill_id ? String(check.bill_id) : null,
+          payeeName: check.payee_name,
+          amount: Number(check.amount || 0),
+          currency: check.currency || 'USD',
+          sourceRepo: proof.sourceRepo,
+          sourceCommitSha: proof.sourceCommitSha,
+          sourcePacketId: proof.sourcePacketId,
+          sourceRunnerId: proof.sourceRunnerId
+        }
+      });
+      const dagEventId = getDagEventId(ledgerEvent);
+      const linkedCheck = await attachCheckDagEvent(db, check.id, dagEventId) || check;
+      await enqueueAccountingEvent(db, {
+        eventType: 'accounting.check.created',
+        entityType: 'accounting_check',
+        entityId: String(check.id),
+        payload: { check: linkedCheck, proof },
+        dagEventId,
+        status: dagEventId ? 'processed' : 'pending'
+      });
+      res.json({ ok: true, check: linkedCheck, ledgerEvent });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post('/api/accounting/checks/:id/print', async (req, res, next) => {
+    try {
+      await ensureSchema();
+      const db = requireDatabase();
+      await ensureAccountingReady(db);
+      const check = await markCheckPrinted(db, req.params.id, req.body || {});
+      if (!check) return res.status(404).json({ ok: false, error: 'Check not found.' });
+      res.json({ ok: true, check });
     } catch (error) {
       next(error);
     }
