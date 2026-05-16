@@ -1,4 +1,6 @@
 import { createAccountingInvoice, getAccountingSummary, listAccountingTables, seedAccountingDefaults } from './accountingSchema.js';
+import { appendLedgerEvent, getDagEventId, getLedgerProofFields } from './neroaLedgerClient.js';
+import { attachDagEvent, ensureAccountingDagSchema } from './accountingDagSchema.js';
 
 export function registerAccountingRoutes(app, requireDatabase, ensureSchema) {
   app.post('/api/accounting/setup', async (req, res, next) => {
@@ -6,13 +8,14 @@ export function registerAccountingRoutes(app, requireDatabase, ensureSchema) {
       await ensureSchema();
       const db = requireDatabase();
       await seedAccountingDefaults(db);
+      await ensureAccountingDagSchema(db);
       const tables = await listAccountingTables(db);
       await db.query(
         `insert into portal_activity_logs (actor, action, entity_type, metadata)
          values ($1, $2, $3, $4)`,
-        [req.body?.actor || 'system', 'accounting_schema_initialized', 'accounting', { tables }]
+        [req.body?.actor || 'system', 'accounting_schema_initialized', 'accounting', { tables, dagLinked: true }]
       );
-      res.json({ ok: true, message: 'Accounting portal schema initialized with standard chart of accounts.', tables });
+      res.json({ ok: true, message: 'Accounting portal schema initialized with standard chart of accounts and DAG proof linkage.', tables });
     } catch (error) {
       next(error);
     }
@@ -23,9 +26,10 @@ export function registerAccountingRoutes(app, requireDatabase, ensureSchema) {
       await ensureSchema();
       const db = requireDatabase();
       await seedAccountingDefaults(db);
+      await ensureAccountingDagSchema(db);
       const tables = await listAccountingTables(db);
       const summary = await getAccountingSummary(db);
-      res.json({ ok: true, tables, summary });
+      res.json({ ok: true, tables, summary, ledger: { configured: Boolean(process.env.NEROA_LEDGER_URL && process.env.NEROA_LEDGER_API_KEY) } });
     } catch (error) {
       next(error);
     }
@@ -36,8 +40,9 @@ export function registerAccountingRoutes(app, requireDatabase, ensureSchema) {
       await ensureSchema();
       const db = requireDatabase();
       await seedAccountingDefaults(db);
+      await ensureAccountingDagSchema(db);
       const result = await db.query(
-        `select id, account_code, account_name, account_type, normal_balance, is_active
+        `select id, account_code, account_name, account_type, normal_balance, is_active, dag_event_id, source_repo, source_commit_sha, source_packet_id, source_runner_id
          from accounting_accounts
          order by account_code`
       );
@@ -52,6 +57,7 @@ export function registerAccountingRoutes(app, requireDatabase, ensureSchema) {
       await ensureSchema();
       const db = requireDatabase();
       await seedAccountingDefaults(db);
+      await ensureAccountingDagSchema(db);
       const result = await db.query(
         `select ai.*, ac.customer_name, p.name as project_name
          from accounting_invoices ai
@@ -71,13 +77,34 @@ export function registerAccountingRoutes(app, requireDatabase, ensureSchema) {
       await ensureSchema();
       const db = requireDatabase();
       await seedAccountingDefaults(db);
-      const invoice = await createAccountingInvoice(db, req.body || {});
+      await ensureAccountingDagSchema(db);
+      const proof = getLedgerProofFields(req.body || {});
+      const invoice = await createAccountingInvoice(db, { ...(req.body || {}), ...proof });
+      const ledgerEvent = await appendLedgerEvent({
+        type: 'accounting.invoice.created',
+        actor: req.body?.actor || 'system',
+        projectId: invoice.project_id ? String(invoice.project_id) : undefined,
+        parentEventIds: req.body?.parentEventIds || [],
+        payload: {
+          invoiceId: String(invoice.id),
+          invoiceNumber: invoice.invoice_number,
+          customerId: invoice.customer_id ? String(invoice.customer_id) : null,
+          amount: Number(invoice.total || 0),
+          currency: invoice.currency || req.body?.currency || 'USD',
+          sourceRepo: proof.sourceRepo,
+          sourceCommitSha: proof.sourceCommitSha,
+          sourcePacketId: proof.sourcePacketId,
+          sourceRunnerId: proof.sourceRunnerId
+        }
+      });
+      const dagEventId = getDagEventId(ledgerEvent);
+      const linkedInvoice = await attachDagEvent(db, 'accounting_invoices', invoice.id, dagEventId) || invoice;
       await db.query(
         `insert into portal_activity_logs (actor, action, entity_type, entity_id, metadata)
          values ($1, $2, $3, $4, $5)`,
-        [req.body?.actor || 'accounting', 'accounting_invoice_created', 'accounting_invoice', String(invoice.id), invoice]
+        [req.body?.actor || 'accounting', 'accounting_invoice_created', 'accounting_invoice', String(invoice.id), { invoice: linkedInvoice, ledgerEvent }]
       );
-      res.json({ ok: true, invoice });
+      res.json({ ok: true, invoice: linkedInvoice, ledgerEvent });
     } catch (error) {
       next(error);
     }
@@ -88,6 +115,7 @@ export function registerAccountingRoutes(app, requireDatabase, ensureSchema) {
       await ensureSchema();
       const db = requireDatabase();
       await seedAccountingDefaults(db);
+      await ensureAccountingDagSchema(db);
       const result = await db.query(
         `select ab.*, av.vendor_name, p.name as project_name
          from accounting_bills ab
@@ -107,6 +135,7 @@ export function registerAccountingRoutes(app, requireDatabase, ensureSchema) {
       await ensureSchema();
       const db = requireDatabase();
       await seedAccountingDefaults(db);
+      await ensureAccountingDagSchema(db);
       const result = await db.query(
         `select * from accounting_payments
          order by payment_date desc, id desc
@@ -123,6 +152,7 @@ export function registerAccountingRoutes(app, requireDatabase, ensureSchema) {
       await ensureSchema();
       const db = requireDatabase();
       await seedAccountingDefaults(db);
+      await ensureAccountingDagSchema(db);
       const result = await db.query(
         `select aje.*, coalesce(sum(ajl.debit),0)::numeric(14,2) as debit_total,
                 coalesce(sum(ajl.credit),0)::numeric(14,2) as credit_total
