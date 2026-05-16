@@ -156,11 +156,19 @@
   <script type="module" src="/src/App.jsx"></script>
   <script>
     (function () {
-      function isEstimatingPortal() {
-        return document.body.textContent && document.body.textContent.includes('Estimating Portal');
-      }
       function findWorkspace() {
         return document.querySelector('.workspace');
+      }
+      function isEstimatingPortal() {
+        const workspace = findWorkspace();
+        const title = workspace && workspace.querySelector('.workspace-header h1');
+        return title && title.textContent.trim() === 'Estimating Portal';
+      }
+      function removeQuotePanelsOutsideEstimating() {
+        if (isEstimatingPortal()) return;
+        document.querySelectorAll('[data-quote-workbook="true"]').forEach(function(panel) {
+          panel.remove();
+        });
       }
       function buildPanel() {
         const panel = document.createElement('section');
@@ -169,15 +177,15 @@
         panel.innerHTML = `
           <div class="quote-workbook-head">
             <div>
-              <p class="eyebrow">Live quoting workbook</p>
+              <p class="eyebrow">Estimating workbook</p>
               <h2>Quoting Sheet Engine</h2>
-              <p>This belongs in Estimating. Upload the Excel quoting workbook here, then we map sheets, formulas, quote lines, labor/material fields, margin, and final quote output into the ERP database.</p>
+              <p>This belongs in Estimating only. Upload the Excel quoting workbook here, then we map sheets, formulas, quote lines, labor/material fields, margin, and final quote output into the ERP database.</p>
             </div>
             <div class="live-badge">Estimating source file</div>
           </div>
           <div class="quote-upload-box">
             <strong>Upload Steel Craft quoting spreadsheet</strong>
-            <span>Accepted: .xlsx, .xls, .xlsm, .csv. This front-end now captures the file and marks the quote engine as staged. Backend parsing is the next connection.</span>
+            <span>Accepted: .xlsx, .xls, .xlsm, .csv. This front-end captures the file and marks the quote engine as staged. Backend parsing is the next connection.</span>
             <input id="quoteWorkbookInput" type="file" accept=".xlsx,.xls,.xlsm,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
             <div id="quoteWorkbookName" class="notice">No workbook uploaded in this session.</div>
           </div>
@@ -202,11 +210,14 @@
         return panel;
       }
       function attachPanel() {
+        removeQuotePanelsOutsideEstimating();
         const workspace = findWorkspace();
         if (!workspace || !isEstimatingPortal()) return;
         if (workspace.querySelector('[data-quote-workbook="true"]')) return;
         const panel = buildPanel();
-        workspace.appendChild(panel);
+        const header = workspace.querySelector('.workspace-header');
+        if (header && header.nextSibling) workspace.insertBefore(panel, header.nextSibling);
+        else workspace.appendChild(panel);
         const input = panel.querySelector('#quoteWorkbookInput');
         const name = panel.querySelector('#quoteWorkbookName');
         const status = panel.querySelector('#quoteFileStatus');
