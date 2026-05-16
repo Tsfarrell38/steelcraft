@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import AccountingPortal from './AccountingPortal.jsx';
+import { canonicalPortals, defaultTenantModuleMap, getTenantPortals, industryPacks } from './portalRegistry.js';
 import './styles.css';
 import './brandGeometry.js';
 import './brandThemePacks.js';
@@ -9,28 +10,23 @@ const brandKey = 'steelcraft_brand_controls_v1';
 const enabledKey = 'steelcraft_enabled_portals_v1';
 const developerUnlockKey = 'steelcraft_developer_room_unlocked';
 
-const portals = [
-  ['admin','Admin','Customer admin controls','Users, roles, portal access, and customer-facing admin settings.'],
-  ['sales','Sales Portal','Sales pipeline','Leads, opportunities, customers, quote requests, handoff notes, and follow-up.'],
-  ['estimating','Estimating Portal','Estimating workflow','Estimate intake, scope builder, cost build, margin review, quote generation, and bid handoff.'],
-  ['projects','Projects Portal','Project execution','Contracted jobs, engineering, material, fabrication, delivery, erection schedule, punch, and closeout.'],
-  ['planning','Planning Portal','Operations planning','Job readiness, resources, schedule blockers, handoffs, and production/field readiness.'],
-  ['accounting','Accounting','Accounting workflow','AR, AP, invoices, bills, payments, chart of accounts, GL, reporting, retainage, and project financials.'],
-  ['purchasing','Purchasing Portal','Procurement and POs','Purchase orders, vendor assignment, material purchasing, approvals, due dates, and receiving.'],
-  ['hr','HR Portal','Human resources','Salary employee records, PTO, handbook, HR support, onboarding, and training modules. No time clock.'],
-  ['contacts','Contacts / CRM','Relationships','Companies, customer contacts, vendor contacts, contractor contacts, project contacts, and account history.'],
-  ['vendor','Vendor Portal','Outside vendors','Assigned packages, vendor-facing PO visibility, due dates, upload slots, and packet status.'],
-  ['customer','Customer Portal','Outside customers','Approved project status, documents, quotes, contracts, change orders, payments, approvals, and uploads.'],
-  ['employee','Employee Self-Service','Employee access','Personal profile, PTO requests, handbook acknowledgements, training assignments, and employee documents.']
-];
+function portalTuple(portal) {
+  return [portal.id, portal.title, portal.kind, portal.description, portal];
+}
+
+const tenantModuleMap = defaultTenantModuleMap;
+const portalRecords = getTenantPortals(tenantModuleMap);
+const portals = portalRecords.map(portalTuple);
 const developerMeta = ['developer','Developer Room','System builder controls','Brand Room, portal controls, tenant setup, integrations, infrastructure, and module enablement.'];
-const customerPortalIds = portals.map(([id]) => id);
+const customerPortalIds = portalRecords.map((portal) => portal.id);
+const canonicalPortalIds = canonicalPortals.map((portal) => portal.id);
+const industryPortalIds = industryPacks[tenantModuleMap.industryPack].portals.map((portal) => portal.id);
 const defaultEnabledPortals = customerPortalIds;
 
 const baseProfiles = [
   { id:'developer', name:'Max Developer', email:'developer@steelcraft.local', portals: ['developer', ...customerPortalIds] },
   { id:'admin', name:'Admin / Owner', email:'admin@steelcraft.local', portals: customerPortalIds },
-  { id:'accounting', name:'Accounting', email:'accounting@steelcraft.local', portals:['accounting','purchasing','contacts','employee'] },
+  { id:'accounting', name:'Accounting', email:'accounting@steelcraft.local', portals:['accounting','contacts','employee'] },
   { id:'purchasing', name:'Purchasing', email:'purchasing@steelcraft.local', portals:['purchasing','accounting','projects','planning','vendor','contacts','employee'] },
   { id:'projects', name:'Projects', email:'projects@steelcraft.local', portals:['projects','planning','sales','estimating','customer','contacts','employee'] },
   { id:'sales', name:'Sales', email:'sales@steelcraft.local', portals:['sales','estimating','contacts','customer','employee'] },
@@ -47,7 +43,7 @@ const brandDefaults = {
 
 function loadBrand(){ try { return { ...brandDefaults, ...(JSON.parse(localStorage.getItem(brandKey)) || {}) }; } catch { return brandDefaults; } }
 function saveBrand(next){ localStorage.setItem(brandKey, JSON.stringify(next)); }
-function loadEnabledPortals(){ try { const saved = JSON.parse(localStorage.getItem(enabledKey)); return Array.isArray(saved) && saved.length ? saved : defaultEnabledPortals; } catch { return defaultEnabledPortals; } }
+function loadEnabledPortals(){ try { const saved = JSON.parse(localStorage.getItem(enabledKey)); return Array.isArray(saved) && saved.length ? saved.filter((id) => customerPortalIds.includes(id)) : defaultEnabledPortals; } catch { return defaultEnabledPortals; } }
 function saveEnabledPortals(next){ localStorage.setItem(enabledKey, JSON.stringify(next)); }
 function unlockBrandRoom(){ sessionStorage.setItem(developerUnlockKey, 'true'); }
 function lockBrandRoom(){ sessionStorage.removeItem(developerUnlockKey); }
@@ -57,8 +53,10 @@ function pathPortalId(){ const match = routePath().match(/^\/portal\/([^/]+)$/);
 function goTo(path){ history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }
 function styleVars(b){ return { '--brand-accent':b.accentColor, '--page-bg':b.pageBgColor, '--surface':b.surfaceColor, '--surface-alt':b.surfaceAltColor, '--text':b.textColor, '--muted':b.mutedTextColor, '--line':b.borderColor, '--button':b.buttonColor, '--button-text':b.buttonTextColor, '--sidebar':b.sidebarColor, '--topbar':b.topbarColor, '--card':b.cardColor, '--input':b.inputColor, '--shadow':b.shadowColor, '--radius':`${b.radius}px`, '--button-radius':`${b.buttonRadius}px`, '--card-padding':`${b.cardPadding}px`, '--gap':`${b.density}px`, '--border-width':`${b.borderWidth}px`, '--shadow-strength':`${b.shadowStrength}%`, '--font-scale':`${b.fontScale}%`, '--logo-size':`${b.logoSize}px` }; }
 function meta(id){ return id === 'developer' ? developerMeta : (portals.find(([pid])=>pid===id) || portals[0]); }
+function portalRecord(id){ return meta(id)?.[4] || null; }
 function initials(text){ return (text || 'Brand').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase(); }
 function enabledPortalMeta(enabledPortals){ return portals.filter(([id]) => enabledPortals.includes(id)); }
+function portalPackageLabel(id) { const record = portalRecord(id); return record?.scope === 'industry' ? 'Metal Buildings' : 'Canonical Core'; }
 
 function LogoGlyph({brand}){ if (brand.logoMode === 'none') return null; if (brand.logoMode === 'image' && brand.logoUrl) return <img className={`brand-logo-img logo-${brand.logoShape}`} src={brand.logoUrl} alt={`${brand.logoText} logo`} />; if (brand.logoMode === 'text') return null; return <div className={`brand-initials logo-${brand.logoShape}`}>{initials(brand.logoText)}</div>; }
 function BrandMark({brand}){ return <div className={`brand logo-mode-${brand.logoMode}`}><LogoGlyph brand={brand}/><div><strong>{brand.logoText}</strong><small>{brand.logoSubtext}</small></div></div>; }
@@ -78,9 +76,9 @@ function DeveloperShell({brand,user,signOut,children}){
   return <main className="dashboard layout-dock-left theme-steelcraft-dark developer-route" style={styleVars(brand)}><header className="erp-topbar panel"><BrandMark brand={brand}/><div className="topbar-meta"><span>Signed in as</span><strong>{user.name}</strong><small>developer-only system area</small></div><div className="current-portal"><span>Current room</span><strong>Developer</strong></div><button className="sign-out" onClick={signOut}>Sign out</button></header><section className="workspace">{children}</section></main>;
 }
 
-function Header({id}){ const [,title,kind,desc]=meta(id); return <header className="workspace-header panel"><div><p className="eyebrow">{kind}</p><h1>{title}</h1><p>{desc}</p></div><div className="live-badge">Backend connected</div></header>; }
+function Header({id}){ const [,title,kind,desc]=meta(id); return <header className="workspace-header panel"><div><p className="eyebrow">{kind}</p><h1>{title}</h1><p>{desc}</p></div><div className="live-badge">{portalPackageLabel(id)}</div></header>; }
 function RecordList({title,rows}){ return <article className="feature panel"><h2>{title}</h2><div className="data-rows">{rows.map(([a,b,c])=><div className="data-row" key={a}><div><strong>{a}</strong><span>{b}</span></div><b>{c}</b></div>)}</div></article>; }
-function Portal({id}){ const rows = id==='projects' ? [['Erection schedule','Crew planning, erection dates, field readiness, and conflicts.','Projects'],['Project dashboard','Contracted jobs and project status.','Projects']] : [['Workspace','Role-based ERP lane.','Ready'],['Next build','Forms, tables, records, and workflow actions.','Scaffold']]; return <><Header id={id}/><div className="workspace-grid"><article className="feature panel large"><p className="eyebrow">ERP work portal</p><h2>{meta(id)[1]}</h2><p>{meta(id)[3]}</p>{id==='projects'&&<div className="notice">Erection Schedule lives under Projects.</div>}</article><RecordList title="Portal map" rows={rows}/></div></>; }
+function Portal({id}){ const record = portalRecord(id); const rows = record?.scope === 'industry' ? [[record.title,`${record.canonicalKey} lives in the ${industryPacks[tenantModuleMap.industryPack].title} industry pack.`,record.package],['Data boundary', id === 'projects' ? 'Steel Craft project data should map into metal_building_projects over the canonical project record.' : 'Industry-specific tables should extend the canonical record when needed.','Industry']] : [[record?.title || 'Workspace',`${record?.canonicalKey || id} is part of the reusable core package.`, 'Core'],['Data boundary','Reusable across tenants and industry packs.','Canonical']]; return <><Header id={id}/><div className="workspace-grid"><article className="feature panel large"><p className="eyebrow">{record?.scope === 'industry' ? 'Industry portal' : 'Canonical portal'}</p><h2>{meta(id)[1]}</h2><p>{meta(id)[3]}</p>{id==='projects'&&<div className="notice">Metal Buildings Projects should hold Steel Craft-specific project fields while linking back to the canonical project record.</div>}</article><RecordList title="Portal registry" rows={rows}/></div></>; }
 
 function DeveloperRoom({enabledPortals,setEnabledPortals}) {
   const togglePortal = (portalId) => setEnabledPortals((current) => {
@@ -89,18 +87,21 @@ function DeveloperRoom({enabledPortals,setEnabledPortals}) {
     return next;
   });
   const rows = [
-    ['Brand Room','Open the private developer-only Brand Room for logo, UI/UX style, color, and tenant look.','/brand'],
-    ['Portal Controls','Turn customer portals on/off before Admin can assign users.','Live'],
-    ['Portal URLs','Each portal now has its own route under /portal/{portal-id}.','Live'],
-    ['Infrastructure','Accounting, packets, runners, QC, approval logs, and proof events.','Next']
+    ['Core Package','Admin, Accounting, Contacts, HR, Vendor, Customer, Employee.','Canonical'],
+    ['Industry Pack','Sales, Estimating, Projects, Planning, Purchasing.','Metal Buildings'],
+    ['Portal URLs','Each portal has its own route under /portal/{portal-id}.','Live'],
+    ['Tenant Module Map',`${tenantModuleMap.tenantName} uses ${tenantModuleMap.industryPack}.`,'Live']
   ];
+  const canonicalRows = portals.filter(([id]) => canonicalPortalIds.includes(id));
+  const industryRows = portals.filter(([id]) => industryPortalIds.includes(id));
   return <>
     <Header id="developer" />
     <div className="workspace-grid">
-      <article className="feature panel large"><p className="eyebrow">Max developer controls</p><h2>System builder room</h2><p>This room lives at /developer and is separated from the customer portal navigation. Brand Room and portal enablement are developer-only. Customer admins never see these controls.</p><div className="quote-actions"><button type="button" onClick={() => { unlockBrandRoom(); goTo('/brand'); }}>Open Brand Room</button><button type="button" onClick={() => goTo('/portal/admin')}>Preview Admin Portal</button></div></article>
-      <RecordList title="Developer areas" rows={rows} />
+      <article className="feature panel large"><p className="eyebrow">Max developer controls</p><h2>System builder room</h2><p>This room lives at /developer and now reads from the tenant module map. Canonical portals are reusable core modules. Sales, Estimating, Projects, Planning, and Purchasing are Metal Buildings industry-pack portals.</p><div className="quote-actions"><button type="button" onClick={() => { unlockBrandRoom(); goTo('/brand'); }}>Open Brand Room</button><button type="button" onClick={() => goTo('/portal/admin')}>Preview Admin Portal</button></div></article>
+      <RecordList title="Module map" rows={rows} />
     </div>
-    <article className="feature panel access-manager"><p className="eyebrow">Portal Controls</p><h2>Choose which portals exist for this tenant</h2><p>Disabled portals disappear from Admin and from user navigation, even if a profile has that portal in its access list.</p><div className="portal-permission-grid">{enabledPortalMeta(defaultEnabledPortals).map(([id,title,kind])=><label className="permission-toggle" key={id}><input type="checkbox" checked={enabledPortals.includes(id)} onChange={()=>togglePortal(id)}/><span><strong>{title}</strong><small>{kind} · {portalUrl(id)}</small></span></label>)}</div></article>
+    <article className="feature panel access-manager"><p className="eyebrow">Canonical Core</p><h2>Reusable portals every tenant can share</h2><p>Build these first until they are strong enough to branch out and connect quickly across future tenants.</p><div className="portal-permission-grid">{canonicalRows.map(([id,title,kind])=><label className="permission-toggle" key={id}><input type="checkbox" checked={enabledPortals.includes(id)} onChange={()=>togglePortal(id)}/><span><strong>{title}</strong><small>{kind} · core · {portalUrl(id)}</small></span></label>)}</div></article>
+    <article className="feature panel access-manager"><p className="eyebrow">Industry Pack / Metal Buildings</p><h2>Steel Craft-specific workflow portals</h2><p>These portals carry industry-specific project, estimating, purchasing, planning, and sales workflow for metal buildings.</p><div className="portal-permission-grid">{industryRows.map(([id,title,kind])=><label className="permission-toggle" key={id}><input type="checkbox" checked={enabledPortals.includes(id)} onChange={()=>togglePortal(id)}/><span><strong>{title}</strong><small>{kind} · metal_buildings · {portalUrl(id)}</small></span></label>)}</div></article>
   </>;
 }
 
@@ -110,7 +111,7 @@ function Admin({profiles,setProfiles,enabledPortals}){
   const profile=profiles.find(p=>p.id===selected)||customerProfiles[0];
   const availablePortals = enabledPortalMeta(enabledPortals);
   const toggle=pid=>setProfiles(all=>all.map(p=>p.id!==profile.id?p:{...p, portals:p.portals.includes(pid)?p.portals.filter(x=>x!==pid):[...p.portals,pid]}));
-  return <><Header id="admin"/><div className="workspace-grid"><article className="feature panel access-manager"><p className="eyebrow">Admin permissions</p><h2>Assign available portals</h2><p>Admin can assign or restrict user access only within the portals that are available for this tenant.</p><label>Role / user<select value={selected} onChange={e=>setSelected(e.target.value)}>{customerProfiles.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label><div className="portal-permission-grid">{availablePortals.map(([id,title,kind])=><label className="permission-toggle" key={id}><input type="checkbox" checked={profile?.portals.includes(id)} onChange={()=>toggle(id)}/><span><strong>{title}</strong><small>{kind}</small></span></label>)}</div></article><RecordList title="Current enabled access" rows={customerProfiles.map(p=>[p.name,p.email,p.portals.filter((id)=>enabledPortals.includes(id)).map(id=>meta(id)[1]).join(', ') || 'No enabled portals'])}/></div></>;
+  return <><Header id="admin"/><div className="workspace-grid"><article className="feature panel access-manager"><p className="eyebrow">Admin permissions</p><h2>Assign available portals</h2><p>Admin can assign or restrict user access only within the portals that Max Developer enabled for this tenant.</p><label>Role / user<select value={selected} onChange={e=>setSelected(e.target.value)}>{customerProfiles.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label><div className="portal-permission-grid">{availablePortals.map(([id,title,kind])=><label className="permission-toggle" key={id}><input type="checkbox" checked={profile?.portals.includes(id)} onChange={()=>toggle(id)}/><span><strong>{title}</strong><small>{kind} · {portalPackageLabel(id)}</small></span></label>)}</div></article><RecordList title="Current enabled access" rows={customerProfiles.map(p=>[p.name,p.email,p.portals.filter((id)=>enabledPortals.includes(id)).map(id=>meta(id)[1]).join(', ') || 'No enabled portals'])}/></div></>;
 }
 
 function Auth({brand,profiles,onSignIn}){ const [email,setEmail]=useState(''); const [secret,setSecret]=useState(''); const profile=profiles.find(p=>p.email.toLowerCase()===email.toLowerCase()); return <main className={`landing-dark auth-page theme-${brand.uiTheme}`} style={styleVars(brand)}><section className="landing-card panel auth-only"><BrandMark brand={brand}/><p className="eyebrow">Secure authentication</p><h1>{brand.logoText} ERP Login</h1><p>Sign in to continue. Portals use separate URLs and access is assigned by role.</p><label>Email<input value={email} onChange={e=>setEmail(e.target.value)} placeholder="name@company.com"/></label><label>Password<input type="password" value={secret} onChange={e=>setSecret(e.target.value)} placeholder="Password"/></label><button className="auth-submit" onClick={()=>onSignIn(profile||profiles[0])}>Sign in</button></section></main>; }
