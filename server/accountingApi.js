@@ -1,4 +1,4 @@
-import { createAccountingInvoice, getAccountingSummary, listAccountingTables, seedAccountingDefaults } from './accountingSchema.js';
+import { createAccountingBill, createAccountingCustomer, createAccountingInvoice, createAccountingJournalEntry, createAccountingPayment, createAccountingVendor, getAccountingSummary, listAccountingTables, seedAccountingDefaults } from './accountingSchema.js';
 import { appendLedgerEvent, getDagEventId, getLedgerProofFields } from './neroaLedgerClient.js';
 import { attachDagEvent, ensureAccountingDagSchema } from './accountingDagSchema.js';
 import { ensureAccountingInfrastructure, getAccountingInfrastructureStatus, recordAccountingModuleCheck, enqueueAccountingEvent } from './accountingInfrastructure.js';
@@ -24,6 +24,20 @@ async function updateAccountingProofFields(db, tableName, id, proof) {
      where id = $5`,
     [proof.sourceRepo || null, proof.sourceCommitSha || null, proof.sourcePacketId || null, proof.sourceRunnerId || null, id]
   );
+}
+
+async function appendAccountingEvent(db, event) {
+  const ledgerEvent = await appendLedgerEvent(event);
+  const dagEventId = getDagEventId(ledgerEvent);
+  await enqueueAccountingEvent(db, {
+    eventType: event.type,
+    entityType: event.payload?.entityType || event.type,
+    entityId: event.payload?.entityId || event.payload?.invoiceId || event.payload?.billId || event.payload?.paymentId || event.payload?.checkId || null,
+    payload: event.payload || {},
+    dagEventId,
+    status: dagEventId ? 'processed' : 'pending'
+  });
+  return { ledgerEvent, dagEventId };
 }
 
 export function registerAccountingRoutes(app, requireDatabase, ensureSchema) {
@@ -76,13 +90,7 @@ export function registerAccountingRoutes(app, requireDatabase, ensureSchema) {
       await ensureSchema();
       const db = requireDatabase();
       await ensureAccountingReady(db);
-      const check = await recordAccountingModuleCheck(
-        db,
-        req.body?.checkKey || 'manual.infrastructure.review',
-        req.body?.checkStatus || 'passed',
-        req.body?.detail || 'Accounting infrastructure reviewed.',
-        req.body?.metadata || {}
-      );
+      const check = await recordAccountingModuleCheck(db, req.body?.checkKey || 'manual.infrastructure.review', req.body?.checkStatus || 'passed', req.body?.detail || 'Accounting infrastructure reviewed.', req.body?.metadata || {});
       res.json({ ok: true, check });
     } catch (error) {
       next(error);
@@ -103,6 +111,46 @@ export function registerAccountingRoutes(app, requireDatabase, ensureSchema) {
     } catch (error) {
       next(error);
     }
+  });
+
+  app.get('/api/accounting/customers', async (req, res, next) => {
+    try {
+      await ensureSchema();
+      const db = requireDatabase();
+      await ensureAccountingReady(db);
+      const result = await db.query(`select * from accounting_customers order by customer_name limit 250`);
+      res.json({ ok: true, customers: result.rows });
+    } catch (error) { next(error); }
+  });
+
+  app.post('/api/accounting/customers', async (req, res, next) => {
+    try {
+      await ensureSchema();
+      const db = requireDatabase();
+      await ensureAccountingReady(db);
+      const customer = await createAccountingCustomer(db, req.body || {});
+      res.json({ ok: true, customer });
+    } catch (error) { next(error); }
+  });
+
+  app.get('/api/accounting/vendors', async (req, res, next) => {
+    try {
+      await ensureSchema();
+      const db = requireDatabase();
+      await ensureAccountingReady(db);
+      const result = await db.query(`select * from accounting_vendors order by vendor_name limit 250`);
+      res.json({ ok: true, vendors: result.rows });
+    } catch (error) { next(error); }
+  });
+
+  app.post('/api/accounting/vendors', async (req, res, next) => {
+    try {
+      await ensureSchema();
+      const db = requireDatabase();
+      await ensureAccountingReady(db);
+      const vendor = await createAccountingVendor(db, req.body || {});
+      res.json({ ok: true, vendor });
+    } catch (error) { next(error); }
   });
 
   app.get('/api/accounting/invoices', async (req, res, next) => {
@@ -132,38 +180,15 @@ export function registerAccountingRoutes(app, requireDatabase, ensureSchema) {
       const proof = getLedgerProofFields(req.body || {});
       const invoice = await createAccountingInvoice(db, { ...(req.body || {}), ...proof });
       await updateAccountingProofFields(db, 'accounting_invoices', invoice.id, proof);
-      const ledgerEvent = await appendLedgerEvent({
+      const { ledgerEvent, dagEventId } = await appendAccountingEvent(db, {
         type: 'accounting.invoice.created',
         actor: req.body?.actor || 'system',
         projectId: invoice.project_id ? String(invoice.project_id) : undefined,
         parentEventIds: req.body?.parentEventIds || [],
-        payload: {
-          invoiceId: String(invoice.id),
-          invoiceNumber: invoice.invoice_number,
-          customerId: invoice.customer_id ? String(invoice.customer_id) : null,
-          amount: Number(invoice.total || 0),
-          currency: invoice.currency || req.body?.currency || 'USD',
-          sourceRepo: proof.sourceRepo,
-          sourceCommitSha: proof.sourceCommitSha,
-          sourcePacketId: proof.sourcePacketId,
-          sourceRunnerId: proof.sourceRunnerId
-        }
+        payload: { entityType: 'accounting_invoice', invoiceId: String(invoice.id), entityId: String(invoice.id), invoiceNumber: invoice.invoice_number, customerId: invoice.customer_id ? String(invoice.customer_id) : null, amount: Number(invoice.total || 0), currency: invoice.currency || req.body?.currency || 'USD', ...proof }
       });
-      const dagEventId = getDagEventId(ledgerEvent);
       const linkedInvoice = await attachDagEvent(db, 'accounting_invoices', invoice.id, dagEventId) || invoice;
-      await enqueueAccountingEvent(db, {
-        eventType: 'accounting.invoice.created',
-        entityType: 'accounting_invoice',
-        entityId: String(invoice.id),
-        payload: { invoice: linkedInvoice, proof },
-        dagEventId,
-        status: dagEventId ? 'processed' : 'pending'
-      });
-      await db.query(
-        `insert into portal_activity_logs (actor, action, entity_type, entity_id, metadata)
-         values ($1, $2, $3, $4, $5)`,
-        [req.body?.actor || 'accounting', 'accounting_invoice_created', 'accounting_invoice', String(invoice.id), { invoice: linkedInvoice, ledgerEvent }]
-      );
+      await db.query(`insert into portal_activity_logs (actor, action, entity_type, entity_id, metadata) values ($1, $2, $3, $4, $5)`, [req.body?.actor || 'accounting', 'accounting_invoice_created', 'accounting_invoice', String(invoice.id), { invoice: linkedInvoice, ledgerEvent }]);
       res.json({ ok: true, invoice: linkedInvoice, ledgerEvent });
     } catch (error) {
       next(error);
@@ -189,20 +214,62 @@ export function registerAccountingRoutes(app, requireDatabase, ensureSchema) {
     }
   });
 
+  app.post('/api/accounting/bills', async (req, res, next) => {
+    try {
+      await ensureSchema();
+      const db = requireDatabase();
+      await ensureAccountingReady(db);
+      const proof = getLedgerProofFields(req.body || {});
+      const bill = await createAccountingBill(db, { ...(req.body || {}), ...proof });
+      await updateAccountingProofFields(db, 'accounting_bills', bill.id, proof);
+      const { ledgerEvent, dagEventId } = await appendAccountingEvent(db, {
+        type: 'accounting.bill.created',
+        actor: req.body?.actor || 'system',
+        projectId: bill.project_id ? String(bill.project_id) : undefined,
+        payload: { entityType: 'accounting_bill', entityId: String(bill.id), billId: String(bill.id), billNumber: bill.bill_number, vendorId: bill.vendor_id ? String(bill.vendor_id) : null, amount: Number(bill.total || 0), currency: 'USD', ...proof }
+      });
+      const linkedBill = await attachDagEvent(db, 'accounting_bills', bill.id, dagEventId) || bill;
+      res.json({ ok: true, bill: linkedBill, ledgerEvent });
+    } catch (error) { next(error); }
+  });
+
   app.get('/api/accounting/payments', async (req, res, next) => {
     try {
       await ensureSchema();
       const db = requireDatabase();
       await ensureAccountingReady(db);
       const result = await db.query(
-        `select * from accounting_payments
-         order by payment_date desc, id desc
+        `select ap.*, ac.customer_name, av.vendor_name, ai.invoice_number, ab.bill_number
+         from accounting_payments ap
+         left join accounting_customers ac on ac.id = ap.customer_id
+         left join accounting_vendors av on av.id = ap.vendor_id
+         left join accounting_invoices ai on ai.id = ap.invoice_id
+         left join accounting_bills ab on ab.id = ap.bill_id
+         order by ap.payment_date desc, ap.id desc
          limit 100`
       );
       res.json({ ok: true, payments: result.rows });
     } catch (error) {
       next(error);
     }
+  });
+
+  app.post('/api/accounting/payments', async (req, res, next) => {
+    try {
+      await ensureSchema();
+      const db = requireDatabase();
+      await ensureAccountingReady(db);
+      const proof = getLedgerProofFields(req.body || {});
+      const payment = await createAccountingPayment(db, { ...(req.body || {}), ...proof });
+      await updateAccountingProofFields(db, 'accounting_payments', payment.id, proof);
+      const { ledgerEvent, dagEventId } = await appendAccountingEvent(db, {
+        type: payment.payment_direction === 'sent' ? 'accounting.payment.sent' : 'accounting.payment.received',
+        actor: req.body?.actor || 'system',
+        payload: { entityType: 'accounting_payment', entityId: String(payment.id), paymentId: String(payment.id), direction: payment.payment_direction, amount: Number(payment.amount || 0), invoiceId: payment.invoice_id ? String(payment.invoice_id) : null, billId: payment.bill_id ? String(payment.bill_id) : null, ...proof }
+      });
+      const linkedPayment = await attachDagEvent(db, 'accounting_payments', payment.id, dagEventId) || payment;
+      res.json({ ok: true, payment: linkedPayment, ledgerEvent });
+    } catch (error) { next(error); }
   });
 
   app.get('/api/accounting/checks', async (req, res, next) => {
@@ -226,34 +293,12 @@ export function registerAccountingRoutes(app, requireDatabase, ensureSchema) {
       const check = await createAccountingCheck(db, { ...(req.body || {}), ...proof });
       await updateAccountingProofFields(db, 'accounting_checks', check.id, proof);
       const ledgerEvent = await appendLedgerEvent({
-        type: 'accounting.check.created',
-        actor: req.body?.actor || 'system',
-        projectId: check.project_id ? String(check.project_id) : undefined,
-        parentEventIds: req.body?.parentEventIds || [],
-        payload: {
-          checkId: String(check.id),
-          checkNumber: check.check_number,
-          vendorId: check.vendor_id ? String(check.vendor_id) : null,
-          billId: check.bill_id ? String(check.bill_id) : null,
-          payeeName: check.payee_name,
-          amount: Number(check.amount || 0),
-          currency: check.currency || 'USD',
-          sourceRepo: proof.sourceRepo,
-          sourceCommitSha: proof.sourceCommitSha,
-          sourcePacketId: proof.sourcePacketId,
-          sourceRunnerId: proof.sourceRunnerId
-        }
+        type: 'accounting.check.created', actor: req.body?.actor || 'system', projectId: check.project_id ? String(check.project_id) : undefined, parentEventIds: req.body?.parentEventIds || [],
+        payload: { checkId: String(check.id), checkNumber: check.check_number, vendorId: check.vendor_id ? String(check.vendor_id) : null, billId: check.bill_id ? String(check.bill_id) : null, payeeName: check.payee_name, amount: Number(check.amount || 0), currency: check.currency || 'USD', ...proof }
       });
       const dagEventId = getDagEventId(ledgerEvent);
       const linkedCheck = await attachCheckDagEvent(db, check.id, dagEventId) || check;
-      await enqueueAccountingEvent(db, {
-        eventType: 'accounting.check.created',
-        entityType: 'accounting_check',
-        entityId: String(check.id),
-        payload: { check: linkedCheck, proof },
-        dagEventId,
-        status: dagEventId ? 'processed' : 'pending'
-      });
+      await enqueueAccountingEvent(db, { eventType: 'accounting.check.created', entityType: 'accounting_check', entityId: String(check.id), payload: { check: linkedCheck, proof }, dagEventId, status: dagEventId ? 'processed' : 'pending' });
       res.json({ ok: true, check: linkedCheck, ledgerEvent });
     } catch (error) {
       next(error);
@@ -291,5 +336,19 @@ export function registerAccountingRoutes(app, requireDatabase, ensureSchema) {
     } catch (error) {
       next(error);
     }
+  });
+
+  app.post('/api/accounting/journal', async (req, res, next) => {
+    try {
+      await ensureSchema();
+      const db = requireDatabase();
+      await ensureAccountingReady(db);
+      const proof = getLedgerProofFields(req.body || {});
+      const journalEntry = await createAccountingJournalEntry(db, { ...(req.body || {}), ...proof });
+      await updateAccountingProofFields(db, 'accounting_journal_entries', journalEntry.id, proof);
+      const { ledgerEvent, dagEventId } = await appendAccountingEvent(db, { type: 'accounting.journal.created', actor: req.body?.actor || 'system', payload: { entityType: 'accounting_journal_entry', entityId: String(journalEntry.id), journalEntryId: String(journalEntry.id), entryNumber: journalEntry.entry_number, ...proof } });
+      const linkedEntry = await attachDagEvent(db, 'accounting_journal_entries', journalEntry.id, dagEventId) || journalEntry;
+      res.json({ ok: true, journalEntry: linkedEntry, ledgerEvent });
+    } catch (error) { next(error); }
   });
 }
