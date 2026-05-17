@@ -220,6 +220,28 @@ export async function listAccountingTables(db) {
   return tables.rows.map((row) => row.table_name);
 }
 
+export async function createAccountingCustomer(db, payload = {}) {
+  await ensureAccountingSchema(db);
+  const result = await db.query(
+    `insert into accounting_customers (customer_name, contact_name, email, phone, billing_address, terms, status, raw)
+     values ($1,$2,$3,$4,$5,$6,$7,$8)
+     returning *`,
+    [payload.customerName || payload.name || 'New Customer', payload.contactName || null, payload.email || null, payload.phone || null, payload.billingAddress || null, payload.terms || 'Net 30', payload.status || 'active', payload]
+  );
+  return result.rows[0];
+}
+
+export async function createAccountingVendor(db, payload = {}) {
+  await ensureAccountingSchema(db);
+  const result = await db.query(
+    `insert into accounting_vendors (vendor_name, contact_name, email, phone, remittance_address, terms, status, raw)
+     values ($1,$2,$3,$4,$5,$6,$7,$8)
+     returning *`,
+    [payload.vendorName || payload.name || 'New Vendor', payload.contactName || null, payload.email || null, payload.phone || null, payload.remittanceAddress || null, payload.terms || 'Net 30', payload.status || 'active', payload]
+  );
+  return result.rows[0];
+}
+
 export async function createAccountingInvoice(db, payload = {}) {
   await ensureAccountingSchema(db);
   const invoiceNumber = payload.invoiceNumber || `INV-${Date.now()}`;
@@ -231,7 +253,81 @@ export async function createAccountingInvoice(db, payload = {}) {
     `insert into accounting_invoices (customer_id, project_id, estimate_id, invoice_number, invoice_type, status, issue_date, due_date, subtotal, tax, retainage, total, balance_due, notes, raw)
      values ($1,$2,$3,$4,$5,$6,coalesce($7,current_date),$8,$9,$10,$11,$12,$13,$14,$15)
      returning *`,
-    [payload.customerId || null, payload.projectId || null, payload.estimateId || null, invoiceNumber, payload.invoiceType || 'progress', payload.status || 'draft', payload.issueDate || null, payload.dueDate || null, subtotal, tax, retainage, total, payload.balanceDue ?? total, payload.notes || null, payload]
+    [payload.customerId || null, payload.projectId || null, payload.estimateId || null, invoiceNumber, payload.invoiceType || 'progress', payload.status || 'sent', payload.issueDate || null, payload.dueDate || null, subtotal, tax, retainage, total, payload.balanceDue ?? total, payload.notes || null, payload]
   );
   return invoice.rows[0];
+}
+
+export async function createAccountingBill(db, payload = {}) {
+  await ensureAccountingSchema(db);
+  const billNumber = payload.billNumber || `BILL-${Date.now()}`;
+  const subtotal = Number(payload.subtotal || payload.amount || 0);
+  const tax = Number(payload.tax || 0);
+  const total = Number(payload.total ?? (subtotal + tax));
+  const result = await db.query(
+    `insert into accounting_bills (vendor_id, project_id, bill_number, po_number, status, bill_date, due_date, subtotal, tax, total, balance_due, notes, raw)
+     values ($1,$2,$3,$4,$5,coalesce($6,current_date),$7,$8,$9,$10,$11,$12,$13)
+     returning *`,
+    [payload.vendorId || null, payload.projectId || null, billNumber, payload.poNumber || null, payload.status || 'received', payload.billDate || null, payload.dueDate || null, subtotal, tax, total, payload.balanceDue ?? total, payload.notes || null, payload]
+  );
+  return result.rows[0];
+}
+
+export async function createAccountingPayment(db, payload = {}) {
+  await ensureAccountingSchema(db);
+  const amount = Number(payload.amount || 0);
+  const direction = payload.paymentDirection || payload.direction || 'received';
+  const result = await db.query(
+    `insert into accounting_payments (payment_direction, customer_id, vendor_id, invoice_id, bill_id, payment_date, payment_method, reference_number, amount, notes, raw)
+     values ($1,$2,$3,$4,$5,coalesce($6,current_date),$7,$8,$9,$10,$11)
+     returning *`,
+    [direction, payload.customerId || null, payload.vendorId || null, payload.invoiceId || null, payload.billId || null, payload.paymentDate || null, payload.paymentMethod || 'manual', payload.referenceNumber || null, amount, payload.notes || null, payload]
+  );
+
+  if (direction === 'received' && payload.invoiceId) {
+    await db.query(
+      `update accounting_invoices
+       set balance_due = greatest(balance_due - $1, 0),
+           status = case when greatest(balance_due - $1, 0) = 0 then 'paid' else 'partially_paid' end,
+           updated_at = now()
+       where id = $2`,
+      [amount, payload.invoiceId]
+    );
+  }
+
+  if (direction === 'sent' && payload.billId) {
+    await db.query(
+      `update accounting_bills
+       set balance_due = greatest(balance_due - $1, 0),
+           status = case when greatest(balance_due - $1, 0) = 0 then 'paid' else 'partially_paid' end,
+           updated_at = now()
+       where id = $2`,
+      [amount, payload.billId]
+    );
+  }
+
+  return result.rows[0];
+}
+
+export async function createAccountingJournalEntry(db, payload = {}) {
+  await ensureAccountingSchema(db);
+  const entryNumber = payload.entryNumber || `JE-${Date.now()}`;
+  const lines = Array.isArray(payload.lines) && payload.lines.length ? payload.lines : [];
+  const entry = await db.query(
+    `insert into accounting_journal_entries (entry_number, entry_date, source, source_id, description, status, raw)
+     values ($1,coalesce($2,current_date),$3,$4,$5,$6,$7)
+     returning *`,
+    [entryNumber, payload.entryDate || null, payload.source || 'manual', payload.sourceId || null, payload.description || 'Manual journal entry', payload.status || 'posted', payload]
+  );
+
+  for (const [index, line] of lines.entries()) {
+    if (!line.accountId) continue;
+    await db.query(
+      `insert into accounting_journal_lines (journal_entry_id, account_id, debit, credit, memo)
+       values ($1,$2,$3,$4,$5)`,
+      [entry.rows[0].id, line.accountId, Number(line.debit || 0), Number(line.credit || 0), line.memo || `Line ${index + 1}`]
+    );
+  }
+
+  return entry.rows[0];
 }
