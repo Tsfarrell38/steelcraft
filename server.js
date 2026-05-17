@@ -8,6 +8,7 @@ import { ensureEstimatingSchema } from './server/estimatingSchema.js';
 import { ensureHrSchema } from './server/hrSchema.js';
 import { ensureAccountingSchema } from './server/accountingSchema.js';
 import { registerAccountingRoutes } from './server/accountingApi.js';
+import { authenticateUser, ensureAuthSchema, listAuthUsers, seedAuthUsers, updateUserLanguage } from './server/authSchema.js';
 import { ensureQuoteWorkbookSchema, importQuoteWorkbook } from './server/quoteWorkbook.js';
 import { ensureQuoteTemplateSchema, createTemplateFromWorkbook, listTemplates, getTemplate, updateTemplateVersion, upsertTemplateOverride } from './server/quoteTemplate.js';
 import { mapMondayBoardsToSteelCraftWorkflow } from './server/steelcraftWorkflow.js';
@@ -76,6 +77,8 @@ async function ensureSchema() {
     create table if not exists projects (id bigserial primary key, source text default 'manual', source_id text, name text not null, status text, company_id bigint references companies(id), raw jsonb, created_at timestamptz not null default now(), updated_at timestamptz not null default now(), unique (source, source_id));
     create table if not exists portal_activity_logs (id bigserial primary key, actor text, action text not null, entity_type text, entity_id text, metadata jsonb, created_at timestamptz not null default now());
   `);
+  await ensureAuthSchema(db);
+  await seedAuthUsers(db);
   await ensureEstimatingSchema(db);
   await ensureQuoteWorkbookSchema(db);
   await ensureQuoteTemplateSchema(db);
@@ -112,15 +115,37 @@ async function auditSteelCraftWorkflow({ save = false } = {}) {
 }
 
 app.get('/api/health', async (req, res) => {
-  const checks = { app: 'ok', database: 'not_configured', monday: process.env.MONDAY_API_TOKEN ? 'configured' : 'not_configured', spaces: process.env.DO_SPACES_BUCKET ? 'configured' : 'not_configured' };
-  try { if (pool) { await pool.query('select 1 as ok'); checks.database = 'connected'; } } catch (error) { checks.database = `error: ${error.message}`; }
+  const checks = { app: 'ok', database: 'not_configured', monday: process.env.MONDAY_API_TOKEN ? 'configured' : 'not_configured', spaces: process.env.DO_SPACES_BUCKET ? 'configured' : 'not_configured', auth: 'not_checked' };
+  try { if (pool) { await pool.query('select 1 as ok'); checks.database = 'connected'; checks.auth = 'database_backed'; } } catch (error) { checks.database = `error: ${error.message}`; checks.auth = 'error'; }
   res.json({ ok: checks.database === 'connected', checks });
 });
 
-app.post('/api/setup/schema', async (req, res, next) => { try { await ensureSchema(); await pool.query(`insert into portal_activity_logs (actor, action, entity_type, metadata) values ($1, $2, $3, $4)`, ['system', 'schema_initialized', 'database', { estimating: true, quoteWorkbooks: true, quoteTemplates: true, accounting: true, hr: true, steelcraftWorkflow: true }]); res.json({ ok: true, message: 'Steel Craft schema initialized, including accounting, editable quote templates, and Steel Craft workflow mapping.' }); } catch (error) { next(error); } });
+app.post('/api/setup/schema', async (req, res, next) => { try { await ensureSchema(); await pool.query(`insert into portal_activity_logs (actor, action, entity_type, metadata) values ($1, $2, $3, $4)`, ['system', 'schema_initialized', 'database', { estimating: true, quoteWorkbooks: true, quoteTemplates: true, accounting: true, hr: true, auth: true, steelcraftWorkflow: true }]); res.json({ ok: true, message: 'Steel Craft schema initialized, including auth, language preference, accounting, editable quote templates, and Steel Craft workflow mapping.' }); } catch (error) { next(error); } });
+
+app.post('/api/auth/login', async (req, res, next) => {
+  try {
+    await ensureSchema();
+    const user = await authenticateUser(requireDatabase(), req.body?.email, req.body?.password);
+    if (!user) return res.status(401).json({ ok: false, error: 'Invalid email or password.' });
+    res.json({ ok: true, user });
+  } catch (error) { next(error); }
+});
+
+app.get('/api/auth/users', async (req, res, next) => {
+  try { await ensureSchema(); const users = await listAuthUsers(requireDatabase()); res.json({ ok: true, users }); } catch (error) { next(error); }
+});
+
+app.patch('/api/auth/users/:id/language', async (req, res, next) => {
+  try {
+    await ensureSchema();
+    const user = await updateUserLanguage(requireDatabase(), req.params.id, req.body?.language || 'en');
+    if (!user) return res.status(404).json({ ok: false, error: 'User not found.' });
+    res.json({ ok: true, user });
+  } catch (error) { next(error); }
+});
 
 app.get('/api/estimating/schema/status', async (req, res, next) => {
-  try { await ensureSchema(); const tables = await requireDatabase().query(`select table_name from information_schema.tables where table_schema = 'public' and (table_name in ('estimates', 'estimate_cost_lines', 'estimate_deposit_schedule', 'quotation_versions', 'quotation_lines', 'project_checklist_items', 'invoices', 'invoice_lines', 'schedule_of_values', 'change_orders', 'quote_workbooks', 'quote_workbook_sheets', 'quote_templates', 'quote_template_versions', 'quote_template_overrides', 'steelcraft_workflow_sources') or table_name like 'accounting_%') order by table_name`); res.json({ ok: true, tables: tables.rows.map((row) => row.table_name) }); } catch (error) { next(error); }
+  try { await ensureSchema(); const tables = await requireDatabase().query(`select table_name from information_schema.tables where table_schema = 'public' and (table_name in ('estimates', 'estimate_cost_lines', 'estimate_deposit_schedule', 'quotation_versions', 'quotation_lines', 'project_checklist_items', 'invoices', 'invoice_lines', 'schedule_of_values', 'change_orders', 'quote_workbooks', 'quote_workbook_sheets', 'quote_templates', 'quote_template_versions', 'quote_template_overrides', 'steelcraft_workflow_sources', 'erp_users') or table_name like 'accounting_%') order by table_name`); res.json({ ok: true, tables: tables.rows.map((row) => row.table_name) }); } catch (error) { next(error); }
 });
 
 app.post('/api/estimating/quote-workbooks', upload.single('workbook'), async (req, res, next) => { try { await ensureSchema(); const result = await importQuoteWorkbook(requireDatabase(), req.file, req.body.actor || 'estimating'); res.json({ ok: true, ...result }); } catch (error) { next(error); } });
