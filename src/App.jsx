@@ -49,7 +49,7 @@ function unlockBrandRoom(){ sessionStorage.setItem(developerUnlockKey, 'true'); 
 function lockBrandRoom(){ sessionStorage.removeItem(developerUnlockKey); }
 function routePath(){ return location.pathname.replace(/\/$/,'') || '/'; }
 function portalUrl(id){ return `/portal/${id}`; }
-function pathPortalId(){ const match = routePath().match(/^\/portal\/([^/]+)$/); return match ? match[1] : null; }
+function pathPortalId(){ const match = routePath().match(/^\/portal\/([^/]+)/); return match ? match[1] : null; }
 function goTo(path){ history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); }
 function styleVars(b){ return { '--brand-accent':b.accentColor, '--page-bg':b.pageBgColor, '--surface':b.surfaceColor, '--surface-alt':b.surfaceAltColor, '--text':b.textColor, '--muted':b.mutedTextColor, '--line':b.borderColor, '--button':b.buttonColor, '--button-text':b.buttonTextColor, '--sidebar':b.sidebarColor, '--topbar':b.topbarColor, '--card':b.cardColor, '--input':b.inputColor, '--shadow':b.shadowColor, '--radius':`${b.radius}px`, '--button-radius':`${b.buttonRadius}px`, '--card-padding':`${b.cardPadding}px`, '--gap':`${b.density}px`, '--border-width':`${b.borderWidth}px`, '--shadow-strength':`${b.shadowStrength}%`, '--font-scale':`${b.fontScale}%`, '--logo-size':`${b.logoSize}px` }; }
 function meta(id){ return id === 'developer' ? developerMeta : (portals.find(([pid])=>pid===id) || portals[0]); }
@@ -86,23 +86,10 @@ function DeveloperRoom({enabledPortals,setEnabledPortals}) {
     saveEnabledPortals(next);
     return next;
   });
-  const rows = [
-    ['Core Package','Admin, Accounting, Contacts, HR, Vendor, Customer, Employee.','Canonical'],
-    ['Industry Pack','Sales, Estimating, Projects, Planning, Purchasing.','Metal Buildings'],
-    ['Portal URLs','Each portal has its own route under /portal/{portal-id}.','Live'],
-    ['Tenant Module Map',`${tenantModuleMap.tenantName} uses ${tenantModuleMap.industryPack}.`,'Live']
-  ];
+  const rows = [['Core Package','Admin, Accounting, Contacts, HR, Vendor, Customer, Employee.','Canonical'],['Industry Pack','Sales, Estimating, Projects, Planning, Purchasing.','Metal Buildings'],['Portal URLs','Each portal has its own route under /portal/{portal-id}.','Live'],['Tenant Module Map',`${tenantModuleMap.tenantName} uses ${tenantModuleMap.industryPack}.`,'Live']];
   const canonicalRows = portals.filter(([id]) => canonicalPortalIds.includes(id));
   const industryRows = portals.filter(([id]) => industryPortalIds.includes(id));
-  return <>
-    <Header id="developer" />
-    <div className="workspace-grid">
-      <article className="feature panel large"><p className="eyebrow">Max developer controls</p><h2>System builder room</h2><p>This room lives at /developer and now reads from the tenant module map. Canonical portals are reusable core modules. Sales, Estimating, Projects, Planning, and Purchasing are Metal Buildings industry-pack portals.</p><div className="quote-actions"><button type="button" onClick={() => { unlockBrandRoom(); goTo('/brand'); }}>Open Brand Room</button><button type="button" onClick={() => goTo('/portal/admin')}>Preview Admin Portal</button></div></article>
-      <RecordList title="Module map" rows={rows} />
-    </div>
-    <article className="feature panel access-manager"><p className="eyebrow">Canonical Core</p><h2>Reusable portals every tenant can share</h2><p>Build these first until they are strong enough to branch out and connect quickly across future tenants.</p><div className="portal-permission-grid">{canonicalRows.map(([id,title,kind])=><label className="permission-toggle" key={id}><input type="checkbox" checked={enabledPortals.includes(id)} onChange={()=>togglePortal(id)}/><span><strong>{title}</strong><small>{kind} · core · {portalUrl(id)}</small></span></label>)}</div></article>
-    <article className="feature panel access-manager"><p className="eyebrow">Industry Pack / Metal Buildings</p><h2>Steel Craft-specific workflow portals</h2><p>These portals carry industry-specific project, estimating, purchasing, planning, and sales workflow for metal buildings.</p><div className="portal-permission-grid">{industryRows.map(([id,title,kind])=><label className="permission-toggle" key={id}><input type="checkbox" checked={enabledPortals.includes(id)} onChange={()=>togglePortal(id)}/><span><strong>{title}</strong><small>{kind} · metal_buildings · {portalUrl(id)}</small></span></label>)}</div></article>
-  </>;
+  return <><Header id="developer" /><div className="workspace-grid"><article className="feature panel large"><p className="eyebrow">Max developer controls</p><h2>System builder room</h2><p>This room lives at /developer and now reads from the tenant module map. Canonical portals are reusable core modules. Sales, Estimating, Projects, Planning, and Purchasing are Metal Buildings industry-pack portals.</p><div className="quote-actions"><button type="button" onClick={() => { unlockBrandRoom(); goTo('/brand'); }}>Open Brand Room</button><button type="button" onClick={() => goTo('/portal/admin')}>Preview Admin Portal</button></div></article><RecordList title="Module map" rows={rows} /></div><article className="feature panel access-manager"><p className="eyebrow">Canonical Core</p><h2>Reusable portals every tenant can share</h2><p>Build these first until they are strong enough to branch out and connect quickly across future tenants.</p><div className="portal-permission-grid">{canonicalRows.map(([id,title,kind])=><label className="permission-toggle" key={id}><input type="checkbox" checked={enabledPortals.includes(id)} onChange={()=>togglePortal(id)}/><span><strong>{title}</strong><small>{kind} · core · {portalUrl(id)}</small></span></label>)}</div></article><article className="feature panel access-manager"><p className="eyebrow">Industry Pack / Metal Buildings</p><h2>Steel Craft-specific workflow portals</h2><p>These portals carry industry-specific project, estimating, purchasing, planning, and sales workflow for metal buildings.</p><div className="portal-permission-grid">{industryRows.map(([id,title,kind])=><label className="permission-toggle" key={id}><input type="checkbox" checked={enabledPortals.includes(id)} onChange={()=>togglePortal(id)}/><span><strong>{title}</strong><small>{kind} · metal_buildings · {portalUrl(id)}</small></span></label>)}</div></article></>;
 }
 
 function Admin({profiles,setProfiles,enabledPortals}){
@@ -117,10 +104,7 @@ function Admin({profiles,setProfiles,enabledPortals}){
 function Auth({brand,profiles,onSignIn}){ const [email,setEmail]=useState(''); const [secret,setSecret]=useState(''); const profile=profiles.find(p=>p.email.toLowerCase()===email.toLowerCase()); return <main className={`landing-dark auth-page theme-${brand.uiTheme}`} style={styleVars(brand)}><section className="landing-card panel auth-only"><BrandMark brand={brand}/><p className="eyebrow">Secure authentication</p><h1>{brand.logoText} ERP Login</h1><p>Sign in to continue. Customer authentication opens the Admin portal first. Developer tools stay separate at /developer.</p><label>Email<input value={email} onChange={e=>setEmail(e.target.value)} placeholder="name@company.com"/></label><label>Password<input type="password" value={secret} onChange={e=>setSecret(e.target.value)} placeholder="Password"/></label><button className="auth-submit" onClick={()=>onSignIn(profile||profiles[1])}>Sign in</button></section></main>; }
 
 function BrandControls(){
-  if (sessionStorage.getItem(developerUnlockKey) !== 'true') {
-    window.location.replace('/developer');
-    return null;
-  }
+  if (sessionStorage.getItem(developerUnlockKey) !== 'true') { window.location.replace('/developer'); return null; }
   const [brand,setBrand]=useState(loadBrand);
   const update=(k,v)=>{const next={...brand,[k]:v};setBrand(next);saveBrand(next)};
   const upload=e=>{const file=e.target.files?.[0]; if(!file)return; const reader=new FileReader(); reader.onload=()=>update('logoUrl', reader.result); reader.readAsDataURL(file);};
@@ -155,7 +139,7 @@ function App(){
   }
 
   const active = requestedPortal && user.portals.includes(requestedPortal) && enabledPortals.includes(requestedPortal) ? requestedPortal : (user.portals.find((id)=>enabledPortals.includes(id)) || 'admin');
-  if (!requestedPortal || requestedPortal !== active) goTo(portalUrl(active));
+  if (!requestedPortal) goTo(portalUrl(active));
 
   return <Shell brand={brand} user={user} active={active} signOut={()=>{ lockBrandRoom(); setUserId(null); goTo('/'); }} enabledPortals={enabledPortals}>{active==='admin'?<Admin profiles={profiles} setProfiles={setProfiles} enabledPortals={enabledPortals}/>:active==='accounting'?<AccountingPortal/>:<Portal id={active}/>}</Shell>;
 }
