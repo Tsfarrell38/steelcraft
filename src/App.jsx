@@ -104,7 +104,6 @@ function Admin({profiles,setProfiles,enabledPortals}){
 function Auth({brand,profiles,onSignIn,defaultProfile}){ const [email,setEmail]=useState(''); const [secret,setSecret]=useState(''); const profile=profiles.find(p=>p.email.toLowerCase()===email.toLowerCase()); const fallbackProfile = defaultProfile || profiles[1]; return <main className={`landing-dark auth-page theme-${brand.uiTheme}`} style={styleVars(brand)}><section className="landing-card panel auth-only"><BrandMark brand={brand}/><p className="eyebrow">Secure authentication</p><h1>{brand.logoText} ERP Login</h1><p>{fallbackProfile?.id === 'developer' ? 'Developer URL detected. Sign in to open the Developer Room and Brand Room controls.' : 'Sign in to continue. Customer authentication opens the Admin portal first. Developer tools stay separate at /developer.'}</p><label>Email<input value={email} onChange={e=>setEmail(e.target.value)} placeholder="name@company.com"/></label><label>Password<input type="password" value={secret} onChange={e=>setSecret(e.target.value)} placeholder="Password"/></label><button className="auth-submit" onClick={()=>onSignIn(profile||fallbackProfile)}>Sign in</button></section></main>; }
 
 function BrandControls(){
-  if (sessionStorage.getItem(developerUnlockKey) !== 'true') { window.location.replace('/developer'); return null; }
   const [brand,setBrand]=useState(loadBrand);
   const update=(k,v)=>{const next={...brand,[k]:v};setBrand(next);saveBrand(next)};
   const upload=e=>{const file=e.target.files?.[0]; if(!file)return; const reader=new FileReader(); reader.onload=()=>update('logoUrl', reader.result); reader.readAsDataURL(file);};
@@ -124,6 +123,11 @@ function App(){
   const requestedPortal = pathPortalId();
   const isDeveloperPath = path === '/developer';
   const defaultAuthProfile = isDeveloperPath ? profiles[0] : profiles[1];
+
+  if (isDeveloperPath && !user) {
+    const developerUser = profiles[0];
+    return <DeveloperShell brand={brand} user={developerUser} signOut={()=>{ lockBrandRoom(); setUserId(null); goTo('/'); }}><DeveloperRoom enabledPortals={enabledPortals} setEnabledPortals={setEnabledPortals}/></DeveloperShell>;
+  }
 
   if(!user) return <Auth brand={brand} profiles={profiles} defaultProfile={defaultAuthProfile} onSignIn={p=>{
     setUserId(p.id);
