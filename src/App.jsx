@@ -114,7 +114,7 @@ function Admin({profiles,setProfiles,enabledPortals}){
   return <><Header id="admin"/><div className="workspace-grid"><article className="feature panel access-manager"><p className="eyebrow">Admin permissions</p><h2>Assign available portals</h2><p>Admin can assign or restrict user access only within the portals that Max Developer enabled for this tenant.</p><label>Role / user<select value={selected} onChange={e=>setSelected(e.target.value)}>{customerProfiles.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label><div className="portal-permission-grid">{availablePortals.map(([id,title,kind])=><label className="permission-toggle" key={id}><input type="checkbox" checked={profile?.portals.includes(id)} onChange={()=>toggle(id)}/><span><strong>{title}</strong><small>{kind} · {portalPackageLabel(id)}</small></span></label>)}</div></article><RecordList title="Current enabled access" rows={customerProfiles.map(p=>[p.name,p.email,p.portals.filter((id)=>enabledPortals.includes(id)).map(id=>meta(id)[1]).join(', ') || 'No enabled portals'])}/></div></>;
 }
 
-function Auth({brand,profiles,onSignIn}){ const [email,setEmail]=useState(''); const [secret,setSecret]=useState(''); const profile=profiles.find(p=>p.email.toLowerCase()===email.toLowerCase()); return <main className={`landing-dark auth-page theme-${brand.uiTheme}`} style={styleVars(brand)}><section className="landing-card panel auth-only"><BrandMark brand={brand}/><p className="eyebrow">Secure authentication</p><h1>{brand.logoText} ERP Login</h1><p>Sign in to continue. Portals use separate URLs and access is assigned by role.</p><label>Email<input value={email} onChange={e=>setEmail(e.target.value)} placeholder="name@company.com"/></label><label>Password<input type="password" value={secret} onChange={e=>setSecret(e.target.value)} placeholder="Password"/></label><button className="auth-submit" onClick={()=>onSignIn(profile||profiles[0])}>Sign in</button></section></main>; }
+function Auth({brand,profiles,onSignIn}){ const [email,setEmail]=useState(''); const [secret,setSecret]=useState(''); const profile=profiles.find(p=>p.email.toLowerCase()===email.toLowerCase()); return <main className={`landing-dark auth-page theme-${brand.uiTheme}`} style={styleVars(brand)}><section className="landing-card panel auth-only"><BrandMark brand={brand}/><p className="eyebrow">Secure authentication</p><h1>{brand.logoText} ERP Login</h1><p>Sign in to continue. Customer authentication opens the Admin portal first. Developer tools stay separate at /developer.</p><label>Email<input value={email} onChange={e=>setEmail(e.target.value)} placeholder="name@company.com"/></label><label>Password<input type="password" value={secret} onChange={e=>setSecret(e.target.value)} placeholder="Password"/></label><button className="auth-submit" onClick={()=>onSignIn(profile||profiles[1])}>Sign in</button></section></main>; }
 
 function BrandControls(){
   if (sessionStorage.getItem(developerUnlockKey) !== 'true') {
@@ -145,8 +145,8 @@ function App(){
     if (p.id !== 'developer') lockBrandRoom();
     if (isDeveloperPath && p.id === 'developer') return;
     if (requestedPortal && p.portals.includes(requestedPortal) && enabledPortals.includes(requestedPortal)) return;
-    const first = p.id === 'developer' ? '/developer' : portalUrl(p.portals.find((id)=>enabledPortals.includes(id)) || 'admin');
-    goTo(first);
+    const firstCustomerPortal = p.portals.includes('admin') && enabledPortals.includes('admin') ? 'admin' : (p.portals.find((id)=>enabledPortals.includes(id)) || 'admin');
+    goTo(portalUrl(firstCustomerPortal));
   }}/>;
 
   if (isDeveloperPath) {
