@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import './accountingLayout.css';
 
 const fallbackSummary = { ar_open: '0.00', ap_open: '0.00', cash_received_mtd: '0.00', cash_paid_mtd: '0.00', open_invoice_count: 0, open_bill_count: 0, active_account_count: 0 };
 const sections = [['today','Today','What needs attention right now'],['money-in','Money In','Invoices, customer payments, and money owed to us'],['money-out','Money Out','Vendor bills, checks, and money we owe'],['banking','Banking + Cards','Bank accounts, debit cards, bank feed, and AI bookkeeping review'],['projects','Projects','Project financial health, job cost, and margin'],['reports','Reports','Simple owner-ready financial reports'],['setup','Setup','Customers, vendors, invoice numbers, quote numbers, tax, and accounting controls']];
